@@ -17,8 +17,8 @@
 
 int g_windowWidth = 1024;
 int g_windowHeight = 768;
-int g_gridWidth = 10;
-int g_gridHeight = 10;
+int g_gridWidth = 21;
+int g_gridHeight = 21;
 const float CUBE_SIZE = 0.8f;
 const float GRID_SPACING = 0.2f;
 
@@ -80,7 +80,7 @@ int g_lastTime = 0;
 std::string readShaderSource(const char* filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        std::cerr << "¼ÎÀÌ´õ ÆÄÀÏÀ» ¿­ ¼ö ¾ø½À´Ï´Ù: " << filePath << std::endl;
+        std::cerr << "Ì´    Ï´: " << filePath << std::endl;
         return "";
     }
     std::stringstream stream;
@@ -98,7 +98,7 @@ GLuint compileShader(GLenum type, const char* source) {
     if (!success) {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        std::cerr << "¼ÎÀÌ´õ ÄÄÆÄÀÏ ¿À·ù: " << infoLog << std::endl;
+        std::cerr << "Ì´  : " << infoLog << std::endl;
         return 0;
     }
     return shader;
@@ -116,7 +116,7 @@ GLuint createShaderProgram(const char* vsSource, const char* fsSource) {
     if (!success) {
         char infoLog[512];
         glGetProgramInfoLog(program, 512, NULL, infoLog);
-        std::cerr << "ÇÁ·Î±×·¥ ¸µÅ© ¿À·ù: " << infoLog << std::endl;
+        std::cerr << "Î±×· Å© : " << infoLog << std::endl;
     }
     glDeleteShader(vs);
     glDeleteShader(fs);
@@ -222,7 +222,7 @@ void init() {
     std::string fsCode = readShaderSource("fragment.glsl");
 
     if (vsCode.empty() || fsCode.empty()) {
-        std::cerr << "¼ÎÀÌ´õ ¼Ò½º°¡ ºñ¾î ÀÖ½À´Ï´Ù. ÆÄÀÏ °æ·Î¸¦ È®ÀÎÇÏ¼¼¿ä." << std::endl;
+        std::cerr << "Ì´ Ò½  Ö½Ï´.  Î¸ È®Ï¼." << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -454,7 +454,7 @@ void update(int value) {
         }
         if (allCubesAtTarget) {
             g_isInitialAnimating = false;
-            std::cout << "¾Ö´Ï¸ÞÀÌ¼Ç ¿Ï·á" << std::endl;
+            std::cout << "Ö´Ï¸Ì¼ Ï·" << std::endl;
         }
     }
     else {
@@ -499,20 +499,20 @@ void keyboard(unsigned char key, int x, int y) {
         glutLeaveMainLoop();
         break;
     case 'c': case 'C':
-        std::cout << "¸ðµç ¼³Á¤ ÃÊ±âÈ­" << std::endl;
+        std::cout << "  Ê±È­" << std::endl;
         reset();
         break;
     case 'r': case 'R':
         if (g_isInitialAnimating) break;
         if (g_wallsHidden) {
-            std::cout << "ÀÌ¹Ì ¹Ì·Î°¡ »ý¼ºµÇ¾î ÀÖ½À´Ï´Ù." << std::endl;
+            std::cout << "Ì¹ Ì·Î° Ç¾ Ö½Ï´." << std::endl;
         }
         else {
             g_wallsHidden = true;
-            std::cout << "¹Ì·Î »ý¼º ¹× º® ¼û±â±â: ON" << std::endl;
+            std::cout << "Ì·    : ON" << std::endl;
 
             if (!g_mazeGenerated) {
-                std::cout << "¹Ì·Î ¾Ë°í¸®Áò ½ÇÇà Áß..." << std::endl;
+                std::cout << "Ì· Ë°  ..." << std::endl;
                 g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
                 int range = (g_gridWidth - 3) / 2;
                 if (range < 0) range = 0;
@@ -531,18 +531,18 @@ void keyboard(unsigned char key, int x, int y) {
     case 'm':
         if (g_isInitialAnimating) break;
         g_isOscillating = true;
-        std::cout << "Áøµ¿ ½ÃÀÛ" << std::endl;
+        std::cout << " " << std::endl;
         break;
     case 'M':
         if (g_isInitialAnimating) break;
         g_isOscillating = false;
-        std::cout << "Áøµ¿ ÀÏ½Ã Á¤Áö" << std::endl;
+        std::cout << " Ï½ " << std::endl;
         break;
 
     case 'v': case 'V':
         if (g_isInitialAnimating) break;
         g_isOscillating = false;
-        std::cout << "Áøµ¿ ÃÊ±âÈ­ (³ôÀÌ º¹±Í)" << std::endl;
+        std::cout << " Ê±È­ ( )" << std::endl;
         for (int i = 0; i < g_gridHeight; ++i) {
             for (int j = 0; j < g_gridWidth; ++j) {
                 g_cubeOscillationScale[i][j] = 0.0f;
@@ -557,11 +557,11 @@ void keyboard(unsigned char key, int x, int y) {
 
     case 'o': case 'O':
         g_isPerspective = false;
-        std::cout << "Åõ¿µ ¹æ½Ä: Á÷°¢ Åõ¿µ" << std::endl;
+        std::cout << " :  " << std::endl;
         break;
     case 'p': case 'P':
         g_isPerspective = true;
-        std::cout << "Åõ¿µ ¹æ½Ä: ¿ø±Ù Åõ¿µ" << std::endl;
+        std::cout << " :  " << std::endl;
         break;
 
     case 's': case 'S':
@@ -569,7 +569,7 @@ void keyboard(unsigned char key, int x, int y) {
         if (g_mazeGenerated) {
             if (!g_isPlayerView) {
                 g_isPlayerView = true;
-                std::cout << "ÇÃ·¹ÀÌ¾î ¸ðµå ½ÃÀÛ" << std::endl;
+                std::cout << "Ã·Ì¾  " << std::endl;
 
                 glm::vec3 startPos = getWorldPos(g_mazeEndX, g_gridHeight - 1);
                 g_playerPosX = startPos.x;
@@ -578,42 +578,42 @@ void keyboard(unsigned char key, int x, int y) {
                 g_isFirstPerson = false;
             }
             else {
-                std::cout << "ÀÌ¹Ì ÇÃ·¹ÀÌ¾î ¸ðµåÀÔ´Ï´Ù." << std::endl;
+                std::cout << "Ì¹ Ã·Ì¾ Ô´Ï´." << std::endl;
             }
         }
         else {
-            std::cout << "¸ÕÀú ¹Ì·Î¸¦ »ý¼ºÇØ¾ß ÇÕ´Ï´Ù ('r' Å°)" << std::endl;
+            std::cout << " Ì·Î¸ Ø¾ Õ´Ï´ ('r' Å°)" << std::endl;
         }
         break;
 
     case '1':
         if (g_isPlayerView) {
             g_isFirstPerson = true;
-            std::cout << "½ÃÁ¡: 1ÀÎÄª" << std::endl;
+            std::cout << ": 1Äª" << std::endl;
         }
         break;
     case '3':
         if (g_isPlayerView) {
             g_isFirstPerson = false;
-            std::cout << "½ÃÁ¡: 3ÀÎÄª" << std::endl;
+            std::cout << ": 3Äª" << std::endl;
         }
         break;
 
     case 'y': case 'Y':
-        std::cout << "È¸Àü (Y)" << std::endl;
+        std::cout << "È¸ (Y)" << std::endl;
         break;
     case 'z': case 'Z':
-        std::cout << "ÁÜ (Z)" << std::endl;
+        std::cout << " (Z)" << std::endl;
         break;
 
     case '+':
         g_animationSpeed += 0.2f;
-        std::cout << "¼Óµµ: " << g_animationSpeed << std::endl;
+        std::cout << "Óµ: " << g_animationSpeed << std::endl;
         break;
     case '-':
         g_animationSpeed -= 0.2f;
         if (g_animationSpeed < 0.2f) g_animationSpeed = 0.2f;
-        std::cout << "¼Óµµ: " << g_animationSpeed << std::endl;
+        std::cout << "Óµ: " << g_animationSpeed << std::endl;
         break;
     }
 }
@@ -632,10 +632,10 @@ void specialKey(int key, int x, int y) {
     if (key >= 0 && key < 128) {
         g_specialKeyStates[key] = true;
         switch (key) {
-        case GLUT_KEY_UP: std::cout << "ÀÌµ¿: ¾Õ" << std::endl; break;
-        case GLUT_KEY_DOWN: std::cout << "ÀÌµ¿: µÚ" << std::endl; break;
-        case GLUT_KEY_LEFT: std::cout << "ÀÌµ¿: ÁÂ" << std::endl; break;
-        case GLUT_KEY_RIGHT: std::cout << "ÀÌµ¿: ¿ì" << std::endl; break;
+        case GLUT_KEY_UP: std::cout << "Ìµ: " << std::endl; break;
+        case GLUT_KEY_DOWN: std::cout << "Ìµ: " << std::endl; break;
+        case GLUT_KEY_LEFT: std::cout << "Ìµ: " << std::endl; break;
+        case GLUT_KEY_RIGHT: std::cout << "Ìµ: " << std::endl; break;
         }
     }
 }
@@ -647,21 +647,6 @@ void specialKeyUp(int key, int x, int y) {
 }
 
 int main(int argc, char** argv) {
-    int width = 0, height = 0;
-    const int MIN_GRID = 5;
-    const int MAX_GRID = 25;
-    while (width < MIN_GRID || width > MAX_GRID) {
-        std::cout << "°¡·Î °³¼ö (" << MIN_GRID << "~" << MAX_GRID << "): ";
-        std::cin >> width;
-    }
-    g_gridWidth = width;
-    while (height < MIN_GRID || height > MAX_GRID) {
-        std::cout << "¼¼·Î °³¼ö (" << MIN_GRID << "~" << MAX_GRID << "): ";
-        std::cin >> height;
-    }
-    g_gridHeight = height;
-    std::cout << g_gridWidth << " x " << g_gridHeight << " ±×¸®µå »ý¼º ¿Ï·á" << std::endl;
-
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
     glutInitWindowSize(g_windowWidth, g_windowHeight);
