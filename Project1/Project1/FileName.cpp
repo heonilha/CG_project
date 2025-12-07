@@ -199,6 +199,22 @@ void reset() {
 
     initCubes();
 
+    g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
+    int range = (g_gridWidth - 3) / 2;
+    if (range < 0) range = 0;
+    std::uniform_int_distribution<int> xDist(0, range);
+    g_mazeStartX = xDist(g_randomEngine) * 2 + 1;
+    g_mazeEndX = xDist(g_randomEngine) * 2 + 1;
+    generateMaze(g_mazeEndX, g_gridHeight - 2);
+    g_maze[0][g_mazeStartX] = PATH;
+    g_maze[1][g_mazeStartX] = PATH;
+    g_maze[g_gridHeight - 1][g_mazeEndX] = PATH;
+    g_mazeGenerated = true;
+
+    glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
+    g_playerPosX = playerStartPos.x;
+    g_playerPosZ = playerStartPos.z;
+
     std::uniform_real_distribution<float> speedDist(0.7f, 1.5f);
     std::uniform_real_distribution<float> maxScaleDist(2.5f, 5.0f);
 
@@ -502,32 +518,6 @@ void keyboard(unsigned char key, int x, int y) {
         std::cout << "  ʱȭ" << std::endl;
         reset();
         break;
-    case 'r': case 'R':
-        if (g_isInitialAnimating) break;
-        if (g_wallsHidden) {
-            std::cout << "̹ ̷ΰ Ǿ ֽϴ." << std::endl;
-        }
-        else {
-            g_wallsHidden = true;
-            std::cout << "̷    : ON" << std::endl;
-
-            if (!g_mazeGenerated) {
-                std::cout << "̷ ˰  ..." << std::endl;
-                g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
-                int range = (g_gridWidth - 3) / 2;
-                if (range < 0) range = 0;
-                std::uniform_int_distribution<int> xDist(0, range);
-                g_mazeStartX = xDist(g_randomEngine) * 2 + 1;
-                g_mazeEndX = xDist(g_randomEngine) * 2 + 1;
-                generateMaze(g_mazeEndX, g_gridHeight - 2);
-                g_maze[0][g_mazeStartX] = PATH;
-                g_maze[1][g_mazeStartX] = PATH;
-                g_maze[g_gridHeight - 1][g_mazeEndX] = PATH;
-                g_mazeGenerated = true;
-            }
-        }
-        break;
-
     case 'm':
         if (g_isInitialAnimating) break;
         g_isOscillating = true;
@@ -562,28 +552,6 @@ void keyboard(unsigned char key, int x, int y) {
     case 'p': case 'P':
         g_isPerspective = true;
         std::cout << " :  " << std::endl;
-        break;
-
-    case 's': case 'S':
-        if (g_isInitialAnimating) break;
-        if (g_mazeGenerated) {
-            if (!g_isPlayerView) {
-                g_isPlayerView = true;
-                std::cout << "÷̾  " << std::endl;
-
-                glm::vec3 startPos = getWorldPos(g_mazeEndX, g_gridHeight - 1);
-                g_playerPosX = startPos.x;
-                g_playerPosZ = startPos.z;
-                g_playerAngleY = 180.0f;
-                g_isFirstPerson = false;
-            }
-            else {
-                std::cout << "̹ ÷̾ Դϴ." << std::endl;
-            }
-        }
-        else {
-            std::cout << " ̷θ ؾ մϴ ('r' Ű)" << std::endl;
-        }
         break;
 
     case '1':
