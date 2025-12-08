@@ -47,6 +47,22 @@ const float WALL_SCALE = 2.0f;
 const float FLOOR_SCALE = 0.05f;
 bool g_isMinimapView = false;
 
+struct Ghost {
+    float x;
+    float z;
+    float angleY;
+    float speed;
+    int dirX;
+    int dirZ;
+};
+
+std::vector<Ghost> g_ghosts;
+
+const float GHOST_WIDTH = 0.3f;
+const float GHOST_HEIGHT = 0.5f;
+const float GHOST_DEPTH = 0.3f;
+const float GHOST_MOVE_SPEED = 1.5f;  // 플레이어보다 약간 느리거나 비슷한 수준
+
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
 std::vector<std::vector<float>> g_cubeCurrentScale;
@@ -196,6 +212,42 @@ void reset() {
     glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
     g_playerPosX = playerStartPos.x;
     g_playerPosZ = playerStartPos.z;
+
+    g_ghosts.clear();
+
+    auto findNearestPath = [&](int gridX, int gridZ) {
+        int maxRadius = 3;
+        for (int radius = 0; radius <= maxRadius; ++radius) {
+            for (int dz = -radius; dz <= radius; ++dz) {
+                for (int dx = -radius; dx <= radius; ++dx) {
+                    int nx = gridX + dx;
+                    int nz = gridZ + dz;
+                    if (nx < 0 || nx >= g_gridWidth || nz < 0 || nz >= g_gridHeight) continue;
+                    if (g_maze[nz][nx] == PATH) {
+                        return glm::ivec2(nx, nz);
+                    }
+                }
+            }
+        }
+
+        return glm::ivec2(g_mazeStartX, 0);
+    };
+
+    auto addGhostAt = [&](int gridX, int gridZ, int dirX, int dirZ) {
+        glm::ivec2 pathCell = findNearestPath(gridX, gridZ);
+        glm::vec3 worldPos = getWorldPos(pathCell.x, pathCell.y);
+        Ghost ghost;
+        ghost.x = worldPos.x;
+        ghost.z = worldPos.z;
+        ghost.angleY = 0.0f;
+        ghost.speed = GHOST_MOVE_SPEED;
+        ghost.dirX = dirX;
+        ghost.dirZ = dirZ;
+        g_ghosts.push_back(ghost);
+    };
+
+    addGhostAt(g_mazeEndX, g_gridHeight - 2, 0, 1);
+    addGhostAt(g_gridWidth / 2, g_gridHeight / 2, 1, 0);
 
     for (int i = 0; i < g_gridHeight; ++i) {
         for (int j = 0; j < g_gridWidth; ++j) {
