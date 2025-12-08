@@ -694,7 +694,7 @@ void drawGhost(const Ghost& ghost) {
     float baseY = gTileY + (gTileScale * CUBE_SIZE * 0.5f);
 
     float bodyHeight = GHOST_HEIGHT * 0.7f;
-    float headRadius = GHOST_HEIGHT * 0.3f;
+    float headRadius = bodyHeight;
 
     // 1) 몸통(원기둥)
     {
@@ -704,7 +704,7 @@ void drawGhost(const Ghost& ghost) {
         model = glm::scale(model, glm::vec3(GHOST_WIDTH, bodyHeight, GHOST_DEPTH));
 
         glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniform3f(g_colorLoc, 1.0f, 0.2f, 0.2f);  // 빨간 유령
+        glUniform3f(g_colorLoc, 0.6f, 0.6f, 0.6f);  // 회색 유령
         drawCylinder();
     }
 
@@ -716,7 +716,7 @@ void drawGhost(const Ghost& ghost) {
         model = glm::scale(model, glm::vec3(headRadius, headRadius, headRadius));
 
         glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniform3f(g_colorLoc, 1.0f, 0.2f, 0.2f);
+        glUniform3f(g_colorLoc, 0.6f, 0.6f, 0.6f);
         drawSphere();
     }
 }
@@ -760,7 +760,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
                     glUniform3f(g_colorLoc, 0.4f, 0.4f, 0.9f);   // 벽 파란 계열
                 }
                 else {
-                    glUniform3f(g_colorLoc, 0.1f, 0.1f, 0.1f);   // 바닥 어두운 회색
+                    glUniform3f(g_colorLoc, 0.0f, 0.0f, 0.0f);   // 바닥 검정색
                 }
             }
 
