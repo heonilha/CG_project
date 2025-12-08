@@ -452,6 +452,36 @@ void display() {
 
     glDisable(GL_SCISSOR_TEST);
     glBindVertexArray(0);
+
+    // ---- 2D Text Overlay ----
+    float centerX = g_windowWidth  * 0.5f;
+    float centerY = g_windowHeight * 0.5f;
+
+    switch (g_gameState) {
+    case GameState::TITLE:
+        renderText(centerX - 120.0f, centerY + 40.0f, "3D PAC-MAN (TEMP)");
+        renderText(centerX - 150.0f, centerY - 10.0f, "PRESS ENTER OR SPACE TO START");
+        renderText(centerX - 100.0f, centerY - 40.0f, "Q : QUIT");
+        break;
+
+    case GameState::PLAYING:
+    {
+        std::string hud = "SCORE: " + std::to_string(g_score) + "   LIVES: " + std::to_string(g_lives);
+        renderText(20.0f, g_windowHeight - 30.0f, hud);
+    }
+    break;
+
+    case GameState::GAME_CLEAR:
+        renderText(centerX - 80.0f, centerY + 10.0f, "STAGE CLEAR!");
+        renderText(centerX - 180.0f, centerY - 30.0f, "R : RESTART   /   T : TITLE");
+        break;
+
+    case GameState::GAME_OVER:
+        renderText(centerX - 80.0f, centerY + 10.0f, "GAME OVER");
+        renderText(centerX - 180.0f, centerY - 30.0f, "R : RETRY     /   T : TITLE");
+        break;
+    }
+
     glutSwapBuffers();
 }
 
