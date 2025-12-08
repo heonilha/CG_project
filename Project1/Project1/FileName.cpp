@@ -770,6 +770,23 @@ void updateGhosts(float deltaTime) {
             float angleRad = std::atan2(static_cast<float>(ghost.dirX), static_cast<float>(ghost.dirZ));
             ghost.angleY = glm::degrees(angleRad);
         }
+
+        float dx = ghost.x - g_playerPosX;
+        float dz = ghost.z - g_playerPosZ;
+        float dist2 = dx * dx + dz * dz;
+        const float collisionDistance = 0.4f;
+
+        if (dist2 < collisionDistance * collisionDistance) {
+            g_lives--;
+            if (g_lives <= 0) {
+                goToGameOver();
+            }
+            else {
+                reset();
+                g_gameState = GameState::PLAYING;
+            }
+            return;
+        }
     }
 }
 
