@@ -36,6 +36,8 @@ GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSi
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+float g_cameraYaw = 0.0f;       // 카메라 자체 yaw
+float g_cameraTurnSpeed = 3.0f; // 카메라가 따라붙는 속도 (Lerp 계수)
 float g_playerPosX = 0.0f;
 float g_playerPosZ = 0.0f;
 float g_playerAngleY = 0.0f;
@@ -253,6 +255,7 @@ void reset() {
     g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     g_playerAngleY = 0.0f;
+    g_cameraYaw = g_playerAngleY;
 
     for (int i = 0; i < 256; i++) g_keyStates[i] = false;
     for (int i = 0; i < 128; i++) g_specialKeyStates[i] = false;
@@ -865,17 +868,17 @@ void display() {
 
         glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
 
-        // 플레이어의 바라보는 방향 벡터 (Z+ 기준)
-        float angleRad = glm::radians(g_playerAngleY);
-        glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
-
         // 3인칭 카메라 파라미터
         const float CAM_DISTANCE = 6.0f;   // 얼마나 뒤로 떨어질지
         const float CAM_HEIGHT   = 4.0f;   // 얼마나 위에 있을지
         const float LOOK_HEIGHT  = 1.0f;   // 팩맨의 어느 높이를 볼지
 
-        // 팩맨 뒤쪽으로 CAM_DISTANCE만큼, 위로 CAM_HEIGHT만큼
-        glm::vec3 camOffset = -forward * CAM_DISTANCE + glm::vec3(0.0f, CAM_HEIGHT, 0.0f);
+        float yawRad = glm::radians(g_cameraYaw);
+
+        glm::vec3 camForward( sin(yawRad), 0.0f, cos(yawRad) );
+        glm::vec3 camOffset =
+            -camForward * CAM_DISTANCE + 
+             glm::vec3(0.0f, CAM_HEIGHT, 0.0f);
 
         g_cameraPos    = playerWorldPos + camOffset;
         g_cameraTarget = playerWorldPos + glm::vec3(0.0f, LOOK_HEIGHT, 0.0f);
@@ -1176,6 +1179,16 @@ void update(int value) {
     if (g_gameState == GameState::PLAYING) {
         handlePlayerInput(deltaTime);
         updateGhosts(deltaTime);
+
+        // 카메라 Yaw를 플레이어 방향으로 Lerp
+        float targetYaw = g_playerAngleY;
+        float diff = targetYaw - g_cameraYaw;
+
+        // 각도 오차가 너무 크면 보정 (ex: 350도 vs -10도 문제 방지)
+        if (diff > 180.0f)  diff -= 360.0f;
+        if (diff < -180.0f) diff += 360.0f;
+
+        g_cameraYaw += diff * g_cameraTurnSpeed * deltaTime;
 
         // 팩맨 입 애니메이션
         g_pacmanMouthAngle += g_pacmanMouthDir * PACMAN_MOUTH_SPEED * deltaTime;
