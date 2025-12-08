@@ -744,13 +744,13 @@ void updateGhosts(float deltaTime) {
                     return std::make_pair(localBest, localCandidates);
                 };
 
-                auto [nonReverseBest, nonReverseOptions] = evaluateCandidates(false);
-                if (!nonReverseOptions.empty()) {
-                    bestCandidates = nonReverseOptions;
+                auto nonReverseResult = evaluateCandidates(false);
+                if (!nonReverseResult.second.empty()) {
+                    bestCandidates = nonReverseResult.second;
                 }
                 else {
-                    auto [anyBest, anyOptions] = evaluateCandidates(true);
-                    bestCandidates = anyOptions;
+                    auto anyResult = evaluateCandidates(true);
+                    bestCandidates = anyResult.second;
                 }
 
                 if (!bestCandidates.empty()) {
