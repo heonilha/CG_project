@@ -31,7 +31,7 @@ GLsizei g_sphereIndexCount = 0;
 
 GLuint g_cylinderVAO = 0, g_cylinderVBO = 0, g_cylinderEBO = 0;
 GLsizei g_cylinderIndexCount = 0;
-GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1;
+GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1, g_lightPosLoc = -1;
 
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -559,6 +559,7 @@ void init() {
     g_viewLoc = glGetUniformLocation(g_shaderProgram, "view");
     g_projLoc = glGetUniformLocation(g_shaderProgram, "projection");
     g_colorLoc = glGetUniformLocation(g_shaderProgram, "objectColor");
+    g_lightPosLoc = glGetUniformLocation(g_shaderProgram, "lightPos");
     g_clipSignLoc = glGetUniformLocation(g_shaderProgram, "clipSign");
 
     float s = 0.5f;
@@ -724,10 +725,11 @@ void drawGhost(const Ghost& ghost) {
 }
 
 
-void drawGrid(glm::mat4 view, glm::mat4 projection) {
+void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
     glUseProgram(g_shaderProgram);
     glUniformMatrix4fv(g_viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(g_projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3fv(g_lightPosLoc, 1, glm::value_ptr(lightPos));
     float totalGridWidth = (g_gridWidth - 1) * (CUBE_SIZE + GRID_SPACING);
     float totalGridHeight = (g_gridHeight - 1) * (CUBE_SIZE + GRID_SPACING);
     float startX = -totalGridWidth / 2.0f;
@@ -878,7 +880,7 @@ void display() {
 
         // 메인 화면
         g_isMinimapView = false;
-        drawGrid(view, projection);
+        drawGrid(view, projection, g_cameraPos);
         // --- Mini-map (top-right square) ---
         int padding = 10;
         int minimapSize = std::min(g_windowWidth, g_windowHeight) / 4; // 정사각형
@@ -923,7 +925,7 @@ void display() {
 
         // 미니맵 모드로 그리기
         g_isMinimapView = true;
-        drawGrid(minimapView, minimapProj);
+        drawGrid(minimapView, minimapProj, glm::vec3(0.0f, 30.0f, 0.0f));
         g_isMinimapView = false;
 
         glDisable(GL_SCISSOR_TEST);
