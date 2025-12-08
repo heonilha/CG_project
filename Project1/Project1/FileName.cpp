@@ -46,6 +46,11 @@ const float PLAYER_WIDTH = 0.3f;
 const float PLAYER_HEIGHT = 0.5f;
 const float PLAYER_DEPTH = 0.3f;
 const float PLAYER_MOVE_SPEED = 4.0f;
+float g_pacmanMouthAngle = 0.0f;          // 현재 입 각도(도)
+float g_pacmanMouthDir = 1.0f;             // 1 = 열리는 중, -1 = 닫히는 중
+
+const float PACMAN_MOUTH_MAX = 45.0f;      // 최대 입 벌림 각도
+const float PACMAN_MOUTH_SPEED = 120.0f;   // 1초에 120도 정도 회전
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
 const float GRID_BASE_SCALE = 1.0f;
@@ -617,6 +622,65 @@ void drawCube() {
     }
 }
 
+void drawHemisphere() {
+    // y >= 0 영역만 남겨 위쪽으로 볼록한 반구 형태를 만든다.
+    GLdouble clipPlane[] = { 0.0, -1.0, 0.0, 0.0 };
+    glEnable(GL_CLIP_PLANE0);
+    glClipPlane(GL_CLIP_PLANE0, clipPlane);
+
+    glBindVertexArray(g_sphereVAO);
+    glDrawElements(GL_TRIANGLES, g_sphereIndexCount, GL_UNSIGNED_INT, (void*)0);
+
+    glDisable(GL_CLIP_PLANE0);
+}
+
+void drawPacman(const glm::vec3& worldPos) {
+    // 팩맨 전체 스케일 (현재 PLAYER_WIDTH 등을 참고해서 맞춰준다)
+    float radiusX = PLAYER_WIDTH;
+    float radiusY = PLAYER_HEIGHT;
+    float radiusZ = PLAYER_DEPTH;
+
+    // 공통 회전 (플레이어 방향)
+    glm::mat4 baseRot = glm::rotate(glm::mat4(1.0f),
+        glm::radians(g_playerAngleY),
+        glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // 위 턱(반구)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, worldPos);
+
+        // 팩맨 전체 회전 + 입 회전 (위쪽으로 열림)
+        model *= baseRot;
+        model = glm::rotate(model,
+            glm::radians(+g_pacmanMouthAngle),
+            glm::vec3(1.0f, 0.0f, 0.0f)); // X축 기준으로 회전
+
+        model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
+
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);  // 노란 팩맨
+        drawHemisphere();
+    }
+
+    // 아래 턱(반구)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, worldPos);
+
+        model *= baseRot;
+        model = glm::rotate(model,
+            glm::radians(-g_pacmanMouthAngle),
+            glm::vec3(1.0f, 0.0f, 0.0f));
+
+        model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
+
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);
+        drawHemisphere();
+    }
+}
+
 
 void drawGrid(glm::mat4 view, glm::mat4 projection) {
     glUseProgram(g_shaderProgram);
@@ -736,15 +800,8 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
         tileScale = g_cubeCurrentScale[gridPos.y][gridPos.x];
     }
     float playerDrawY = tileY + (tileScale * CUBE_SIZE / 2.0f) + (PLAYER_HEIGHT / 2.0f);
-    glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, playerDrawY, g_playerPosZ);
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, playerWorldPos);
-    model = glm::rotate(model, glm::radians(g_playerAngleY), glm::vec3(0.0f, 1.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH));
-    glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    glBindVertexArray(g_cubeVAO);
-    glUniform3f(g_colorLoc, 0.2f, 0.5f, 1.0f);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
+    glm::vec3 playerWorldPos(g_playerPosX, playerDrawY, g_playerPosZ);
+    drawPacman(playerWorldPos);
 
     for (const Ghost& ghost : g_ghosts) {
         glm::ivec2 gGrid = getGridCoord(ghost.x, ghost.z);
@@ -1088,6 +1145,17 @@ void update(int value) {
     if (g_gameState == GameState::PLAYING) {
         handlePlayerInput(deltaTime);
         updateGhosts(deltaTime);
+
+        // 팩맨 입 애니메이션
+        g_pacmanMouthAngle += g_pacmanMouthDir * PACMAN_MOUTH_SPEED * deltaTime;
+        if (g_pacmanMouthAngle > PACMAN_MOUTH_MAX) {
+            g_pacmanMouthAngle = PACMAN_MOUTH_MAX;
+            g_pacmanMouthDir = -1.0f;
+        }
+        else if (g_pacmanMouthAngle < 0.0f) {
+            g_pacmanMouthAngle = 0.0f;
+            g_pacmanMouthDir = 1.0f;
+        }
     }
 
     glutPostRedisplay();
