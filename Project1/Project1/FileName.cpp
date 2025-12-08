@@ -196,23 +196,54 @@ void addMazeLoops(float loopProbability)
     }
 }
 
-void thinWideCorridors(float fillProbability)
+void addDeadEndLoops(float reopenProbability, int maxLinksPerPass)
 {
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
+    int linksAdded = 0;
+    int dx[] = { 0, 0, 1, -1 };
+    int dz[] = { 1, -1, 0, 0 };
+
     for (int z = 1; z < g_gridHeight - 1; ++z) {
         for (int x = 1; x < g_gridWidth - 1; ++x) {
-            bool squareOpen = g_maze[z][x] == PATH
-                && g_maze[z][x + 1] == PATH
-                && g_maze[z + 1][x] == PATH
-                && g_maze[z + 1][x + 1] == PATH;
+            if (g_maze[z][x] != PATH) continue;
 
-            if (!squareOpen || dist(g_randomEngine) >= fillProbability) continue;
+            bool blocked[4];
+            int wallCount = 0;
+            for (int dir = 0; dir < 4; ++dir) {
+                int nx = x + dx[dir];
+                int nz = z + dz[dir];
+                blocked[dir] = (g_maze[nz][nx] == WALL);
+                if (blocked[dir]) wallCount++;
+            }
 
-            bool fillVertical = ((x + z) % 2 == 0);
-            int targetX = fillVertical ? x : x + 1;
-            int targetZ = fillVertical ? z + 1 : z;
-            g_maze[targetZ][targetX] = WALL;
+            if (wallCount != 3) continue;
+            if (dist(g_randomEngine) >= reopenProbability) continue;
+
+            std::vector<int> candidates;
+            for (int dir = 0; dir < 4; ++dir) {
+                if (!blocked[dir]) continue;
+
+                int farX = x + dx[dir] * 2;
+                int farZ = z + dz[dir] * 2;
+
+                if (farX <= 0 || farX >= g_gridWidth - 1 || farZ <= 0 || farZ >= g_gridHeight - 1) continue;
+                if (g_maze[farZ][farX] != PATH) continue;
+
+                candidates.push_back(dir);
+            }
+
+            if (candidates.empty()) continue;
+
+            std::shuffle(candidates.begin(), candidates.end(), g_randomEngine);
+            int chosenDir = candidates.front();
+
+            int linkX = x + dx[chosenDir];
+            int linkZ = z + dz[chosenDir];
+            g_maze[linkZ][linkX] = PATH;
+
+            linksAdded++;
+            if (linksAdded >= maxLinksPerPass) return;
         }
     }
 }
@@ -250,7 +281,7 @@ void reset() {
     g_maze[g_gridHeight - 1][g_mazeEndX] = PATH;
 
     addMazeLoops(0.35f);
-    thinWideCorridors(1.0f);
+    addDeadEndLoops(0.6f, 6);
 
     glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
     g_playerPosX = playerStartPos.x;
