@@ -725,18 +725,11 @@ void drawGhost(const Ghost& ghost) {
 }
 
 
-void drawGrid(glm::mat4 view, glm::mat4 projection) {
+void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
     glUseProgram(g_shaderProgram);
     glUniformMatrix4fv(g_viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(g_projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-    if (g_isMinimapView) {
-        // 미니맵은 위쪽 고정 조명
-        glUniform3f(g_lightPosLoc, 0.0f, 30.0f, 0.0f);
-    } else {
-        // 메인 화면: 카메라 위치에서 빛이 나옴
-        glUniform3f(g_lightPosLoc, g_cameraPos.x, g_cameraPos.y, g_cameraPos.z);
-    }
+    glUniform3fv(g_lightPosLoc, 1, glm::value_ptr(lightPos));
     float totalGridWidth = (g_gridWidth - 1) * (CUBE_SIZE + GRID_SPACING);
     float totalGridHeight = (g_gridHeight - 1) * (CUBE_SIZE + GRID_SPACING);
     float startX = -totalGridWidth / 2.0f;
@@ -887,7 +880,7 @@ void display() {
 
         // 메인 화면
         g_isMinimapView = false;
-        drawGrid(view, projection);
+        drawGrid(view, projection, g_cameraPos);
         // --- Mini-map (top-right square) ---
         int padding = 10;
         int minimapSize = std::min(g_windowWidth, g_windowHeight) / 4; // 정사각형
@@ -932,7 +925,7 @@ void display() {
 
         // 미니맵 모드로 그리기
         g_isMinimapView = true;
-        drawGrid(minimapView, minimapProj);
+        drawGrid(minimapView, minimapProj, glm::vec3(0.0f, 30.0f, 0.0f));
         g_isMinimapView = false;
 
         glDisable(GL_SCISSOR_TEST);
