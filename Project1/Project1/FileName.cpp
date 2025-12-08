@@ -273,6 +273,9 @@ void reset() {
     thinWideCorridors(1.0f);
     enforceEntranceAndBorders();
 
+    addMazeLoops(0.35f);
+    thinWideCorridors(1.0f);
+
     glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
     g_playerPosX = playerStartPos.x;
     g_playerPosZ = playerStartPos.z;
