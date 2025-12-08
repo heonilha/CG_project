@@ -217,27 +217,6 @@ void thinWideCorridors(float fillProbability)
     }
 }
 
-void enforceEntranceAndBorders()
-{
-    for (int z = 0; z < g_gridHeight; ++z) {
-        for (int x = 0; x < g_gridWidth; ++x) {
-            bool isEntrance = (x == g_mazeStartX) && (z == 0 || z == 1);
-            bool isBorder = (z == 0 || z == g_gridHeight - 1 || x == 0 || x == g_gridWidth - 1);
-
-            if (isBorder && !isEntrance) {
-                g_maze[z][x] = WALL;
-            }
-            else if (isEntrance) {
-                g_maze[z][x] = PATH;
-            }
-        }
-    }
-
-    if (g_gridHeight > 2 && g_mazeStartX >= 0 && g_mazeStartX < g_gridWidth) {
-        g_maze[2][g_mazeStartX] = PATH;
-    }
-}
-
 void initCubes() {
     g_maze.resize(g_gridHeight, std::vector<CellType>(g_gridWidth));
     g_cubeCurrentHeight.resize(g_gridHeight, std::vector<float>(g_gridWidth));
@@ -268,10 +247,7 @@ void reset() {
     generateMaze(g_mazeEndX, g_gridHeight - 2);
     g_maze[0][g_mazeStartX] = PATH;
     g_maze[1][g_mazeStartX] = PATH;
-
-    addMazeLoops(0.35f);
-    thinWideCorridors(1.0f);
-    enforceEntranceAndBorders();
+    g_maze[g_gridHeight - 1][g_mazeEndX] = PATH;
 
     addMazeLoops(0.35f);
     thinWideCorridors(1.0f);
