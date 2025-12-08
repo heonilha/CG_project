@@ -532,6 +532,22 @@ void handlePlayerInput(float deltaTime) {
         float angleRad = std::atan2(moveVector.x, moveVector.z);
         g_playerAngleY = glm::degrees(angleRad);
     }
+
+    glm::ivec2 playerGrid = getGridCoord(g_playerPosX, g_playerPosZ);
+    if (playerGrid.y >= 0 && playerGrid.y < g_gridHeight &&
+        playerGrid.x >= 0 && playerGrid.x < g_gridWidth) {
+
+        if (g_maze[playerGrid.y][playerGrid.x] == PATH && g_pellets[playerGrid.y][playerGrid.x]) {
+            g_pellets[playerGrid.y][playerGrid.x] = false;
+
+            g_remainingPellets--;
+            g_score += 10;
+
+            if (g_remainingPellets <= 0) {
+                goToGameClear();
+            }
+        }
+    }
 }
 
 void update(int value) {
