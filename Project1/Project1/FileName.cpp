@@ -4,6 +4,7 @@
 #include <gl/glm/glm.hpp>
 #include <gl/glm/ext.hpp>
 #include <gl/glm/gtc/matrix_transform.hpp>
+#include <gl/glm/gtc/type_ptr.hpp>
 
 #include <iostream>
 #include <vector>
@@ -31,7 +32,7 @@ GLsizei g_sphereIndexCount = 0;
 
 GLuint g_cylinderVAO = 0, g_cylinderVBO = 0, g_cylinderEBO = 0;
 GLsizei g_cylinderIndexCount = 0;
-GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1, g_lightPosLoc = -1;
+GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1, g_lightPosLoc = -1, g_lightDirLoc = -1, g_cutOffLoc = -1, g_outerCutOffLoc = -1;
 
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -409,9 +410,13 @@ void initSphereMesh(int sectorCount, int stackCount) {
             float sectorAngle = j * (2 * PI / sectorCount);
             float x = xy * cosf(sectorAngle);
             float z = xy * sinf(sectorAngle);
+            glm::vec3 normal = glm::normalize(glm::vec3(x, y, z));
             vertices.push_back(x);
             vertices.push_back(y);
             vertices.push_back(z);
+            vertices.push_back(normal.x);
+            vertices.push_back(normal.y);
+            vertices.push_back(normal.z);
         }
     }
 
@@ -445,8 +450,10 @@ void initSphereMesh(int sectorCount, int stackCount) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_sphereEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -461,32 +468,52 @@ void initCylinderMesh(int sectorCount) {
     std::vector<GLfloat> vertices;
     std::vector<GLuint> indices;
 
-    vertices.push_back(0.0f); vertices.push_back(halfHeight); vertices.push_back(0.0f);   // top center
-    vertices.push_back(0.0f); vertices.push_back(-halfHeight); vertices.push_back(0.0f);  // bottom center
+    vertices.insert(vertices.end(), { 0.0f, halfHeight, 0.0f, 0.0f, 1.0f, 0.0f });   // top center
+    vertices.insert(vertices.end(), { 0.0f, -halfHeight, 0.0f, 0.0f, -1.0f, 0.0f }); // bottom center
 
     float sectorStep = 2 * PI / sectorCount;
     for (int i = 0; i <= sectorCount; ++i) {
         float angle = i * sectorStep;
         float x = radius * cosf(angle);
         float z = radius * sinf(angle);
-        vertices.push_back(x);
-        vertices.push_back(halfHeight);
-        vertices.push_back(z);
+        vertices.push_back(x); vertices.push_back(halfHeight); vertices.push_back(z);
+        vertices.push_back(0.0f); vertices.push_back(1.0f); vertices.push_back(0.0f);
     }
 
     for (int i = 0; i <= sectorCount; ++i) {
         float angle = i * sectorStep;
         float x = radius * cosf(angle);
         float z = radius * sinf(angle);
-        vertices.push_back(x);
-        vertices.push_back(-halfHeight);
-        vertices.push_back(z);
+        vertices.push_back(x); vertices.push_back(-halfHeight); vertices.push_back(z);
+        vertices.push_back(0.0f); vertices.push_back(-1.0f); vertices.push_back(0.0f);
+    }
+
+    for (int i = 0; i <= sectorCount; ++i) {
+        float angle = i * sectorStep;
+        float x = radius * cosf(angle);
+        float z = radius * sinf(angle);
+        float nx = cosf(angle);
+        float nz = sinf(angle);
+        vertices.push_back(x); vertices.push_back(halfHeight); vertices.push_back(z);
+        vertices.push_back(nx); vertices.push_back(0.0f); vertices.push_back(nz);
+    }
+
+    for (int i = 0; i <= sectorCount; ++i) {
+        float angle = i * sectorStep;
+        float x = radius * cosf(angle);
+        float z = radius * sinf(angle);
+        float nx = cosf(angle);
+        float nz = sinf(angle);
+        vertices.push_back(x); vertices.push_back(-halfHeight); vertices.push_back(z);
+        vertices.push_back(nx); vertices.push_back(0.0f); vertices.push_back(nz);
     }
 
     GLuint topCenter = 0;
     GLuint bottomCenter = 1;
     GLuint topStart = 2;
     GLuint bottomStart = topStart + sectorCount + 1;
+    GLuint sideTopStart = bottomStart + sectorCount + 1;
+    GLuint sideBottomStart = sideTopStart + sectorCount + 1;
 
     for (int i = 0; i < sectorCount; ++i) {
         indices.push_back(topCenter);
@@ -497,8 +524,8 @@ void initCylinderMesh(int sectorCount) {
         indices.push_back(bottomStart + i + 1);
         indices.push_back(bottomStart + i);
 
-        GLuint k1 = topStart + i;
-        GLuint k2 = bottomStart + i;
+        GLuint k1 = sideTopStart + i;
+        GLuint k2 = sideBottomStart + i;
 
         indices.push_back(k1);
         indices.push_back(k2);
@@ -521,8 +548,10 @@ void initCylinderMesh(int sectorCount) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_cylinderEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -560,19 +589,63 @@ void init() {
     g_projLoc = glGetUniformLocation(g_shaderProgram, "projection");
     g_colorLoc = glGetUniformLocation(g_shaderProgram, "objectColor");
     g_lightPosLoc = glGetUniformLocation(g_shaderProgram, "lightPos");
+    g_lightDirLoc = glGetUniformLocation(g_shaderProgram, "lightDir");
+    g_cutOffLoc = glGetUniformLocation(g_shaderProgram, "cutOff");
+    g_outerCutOffLoc = glGetUniformLocation(g_shaderProgram, "outerCutOff");
     g_clipSignLoc = glGetUniformLocation(g_shaderProgram, "clipSign");
 
     float s = 0.5f;
-    GLfloat vertices[] = { -s, -s,  s,  s, -s,  s,  s,  s,  s, -s,  s,  s, -s, -s, -s,  s, -s, -s,  s,  s, -s, -s,  s, -s };
-    GLuint indices[] = { 3, 2, 6, 6, 7, 3, 0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4, 4, 0, 3, 3, 7, 4, 1, 5, 6, 6, 2, 1, 0, 1, 5, 5, 4, 0 };
+    GLfloat vertices[] = {
+        // Front face
+        -s, -s,  s,  0.0f, 0.0f, 1.0f,
+         s, -s,  s,  0.0f, 0.0f, 1.0f,
+         s,  s,  s,  0.0f, 0.0f, 1.0f,
+        -s,  s,  s,  0.0f, 0.0f, 1.0f,
+        // Back face
+        -s, -s, -s,  0.0f, 0.0f, -1.0f,
+        -s,  s, -s,  0.0f, 0.0f, -1.0f,
+         s,  s, -s,  0.0f, 0.0f, -1.0f,
+         s, -s, -s,  0.0f, 0.0f, -1.0f,
+        // Left face
+        -s, -s, -s, -1.0f, 0.0f, 0.0f,
+        -s, -s,  s, -1.0f, 0.0f, 0.0f,
+        -s,  s,  s, -1.0f, 0.0f, 0.0f,
+        -s,  s, -s, -1.0f, 0.0f, 0.0f,
+        // Right face
+         s, -s, -s, 1.0f, 0.0f, 0.0f,
+         s,  s, -s, 1.0f, 0.0f, 0.0f,
+         s,  s,  s, 1.0f, 0.0f, 0.0f,
+         s, -s,  s, 1.0f, 0.0f, 0.0f,
+        // Bottom face
+        -s, -s, -s, 0.0f, -1.0f, 0.0f,
+         s, -s, -s, 0.0f, -1.0f, 0.0f,
+         s, -s,  s, 0.0f, -1.0f, 0.0f,
+        -s, -s,  s, 0.0f, -1.0f, 0.0f,
+        // Top face
+        -s,  s, -s, 0.0f, 1.0f, 0.0f,
+        -s,  s,  s, 0.0f, 1.0f, 0.0f,
+         s,  s,  s, 0.0f, 1.0f, 0.0f,
+         s,  s, -s, 0.0f, 1.0f, 0.0f
+    };
+
+    GLuint indices[] = {
+        20, 21, 22, 22, 23, 20, // top
+         0,  1,  2,  2,  3,  0,
+         4,  5,  6,  6,  7,  4,
+         8,  9, 10, 10, 11,  8,
+        12, 13, 14, 14, 15, 12,
+        16, 17, 18, 18, 19, 16
+    };
     glGenVertexArrays(1, &g_cubeVAO); glGenBuffers(1, &g_cubeVBO); glGenBuffers(1, &g_cubeEBO);
     glBindVertexArray(g_cubeVAO);
     glBindBuffer(GL_ARRAY_BUFFER, g_cubeVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_cubeEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0); glBindVertexArray(0);
 
     initSphereMesh(24, 16);
@@ -730,6 +803,10 @@ void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
     glUniformMatrix4fv(g_viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(g_projLoc, 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(g_lightPosLoc, 1, glm::value_ptr(lightPos));
+    glm::vec3 lightDirection = g_isMinimapView ? glm::vec3(0.0f, -1.0f, 0.0f) : glm::normalize(g_cameraTarget - g_cameraPos);
+    glUniform3fv(g_lightDirLoc, 1, glm::value_ptr(lightDirection));
+    glUniform1f(g_cutOffLoc, glm::cos(glm::radians(15.0f)));
+    glUniform1f(g_outerCutOffLoc, glm::cos(glm::radians(22.5f)));
     float totalGridWidth = (g_gridWidth - 1) * (CUBE_SIZE + GRID_SPACING);
     float totalGridHeight = (g_gridHeight - 1) * (CUBE_SIZE + GRID_SPACING);
     float startX = -totalGridWidth / 2.0f;
