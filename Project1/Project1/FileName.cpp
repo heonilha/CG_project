@@ -524,7 +524,9 @@ void update(int value) {
     if (deltaTime < 0.001f) deltaTime = 0.001f;
     g_lastTime = currentTime;
 
-    handlePlayerInput(deltaTime);
+    if (g_gameState == GameState::PLAYING) {
+        handlePlayerInput(deltaTime);
+    }
 
     glutPostRedisplay();
     glutTimerFunc(16, update, 0);
@@ -533,13 +535,46 @@ void update(int value) {
 void keyboard(unsigned char key, int x, int y) {
     g_keyStates[key] = true;
 
-    switch (key) {
-    case 'q': case 'Q':
-    case 27:
+    // 공통 종료 키
+    if (key == 'q' || key == 'Q') {
         glutLeaveMainLoop();
+        return;
+    }
+
+    switch (g_gameState) {
+    case GameState::TITLE:
+        if (key == 13 || key == ' ') {
+            startNewGame();
+        }
         break;
-    case 'c': case 'C':
-        reset();
+
+    case GameState::PLAYING:
+        if (key == 'k' || key == 'K') {
+            goToGameOver();
+        }
+        else if (key == 'v' || key == 'V') {
+            goToGameClear();
+        }
+        else {
+            switch (key) {
+            case 27:
+                glutLeaveMainLoop();
+                break;
+            case 'c': case 'C':
+                reset();
+                break;
+            }
+        }
+        break;
+
+    case GameState::GAME_OVER:
+    case GameState::GAME_CLEAR:
+        if (key == 'r' || key == 'R') {
+            startNewGame();
+        }
+        else if (key == 't' || key == 'T') {
+            goToTitle();
+        }
         break;
     }
 }
