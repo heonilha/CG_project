@@ -31,7 +31,7 @@ GLsizei g_sphereIndexCount = 0;
 
 GLuint g_cylinderVAO = 0, g_cylinderVBO = 0, g_cylinderEBO = 0;
 GLsizei g_cylinderIndexCount = 0;
-GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1;
+GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1;
 
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -49,7 +49,7 @@ const float PLAYER_MOVE_SPEED = 4.0f;
 float g_pacmanMouthAngle = 0.0f;          // 현재 입 각도(도)
 float g_pacmanMouthDir = 1.0f;             // 1 = 열리는 중, -1 = 닫히는 중
 
-const float PACMAN_MOUTH_MAX = 45.0f;      // 최대 입 벌림 각도
+const float PACMAN_MOUTH_MAX = 55.0f;      // 최대 입 벌림 각도 (약간 축소)
 const float PACMAN_MOUTH_SPEED = 120.0f;   // 1초에 120도 정도 회전
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
@@ -559,6 +559,7 @@ void init() {
     g_viewLoc = glGetUniformLocation(g_shaderProgram, "view");
     g_projLoc = glGetUniformLocation(g_shaderProgram, "projection");
     g_colorLoc = glGetUniformLocation(g_shaderProgram, "objectColor");
+    g_clipSignLoc = glGetUniformLocation(g_shaderProgram, "clipSign");
 
     float s = 0.5f;
     GLfloat vertices[] = { -s, -s,  s,  s, -s,  s,  s,  s,  s, -s,  s,  s, -s, -s, -s,  s, -s, -s,  s,  s, -s, -s,  s, -s };
@@ -622,23 +623,24 @@ void drawCube() {
     }
 }
 
-void drawHemisphere() {
-    // y >= 0 영역만 남겨 위쪽으로 볼록한 반구 형태를 만든다.
-    GLdouble clipPlane[] = { 0.0, -1.0, 0.0, 0.0 };
-    glEnable(GL_CLIP_PLANE0);
-    glClipPlane(GL_CLIP_PLANE0, clipPlane);
+void drawHemisphere(float clipSign) {
+    // clipSign = +1 : y >= 0만 남김 (위쪽 반구)
+    // clipSign = -1 : y <= 0만 남김 (아래쪽 반구)
+    glEnable(GL_CLIP_DISTANCE0);
+    glUniform1f(g_clipSignLoc, clipSign);
 
     glBindVertexArray(g_sphereVAO);
     glDrawElements(GL_TRIANGLES, g_sphereIndexCount, GL_UNSIGNED_INT, (void*)0);
 
-    glDisable(GL_CLIP_PLANE0);
+    glDisable(GL_CLIP_DISTANCE0);
 }
 
 void drawPacman(const glm::vec3& worldPos) {
-    // 팩맨 전체 스케일 (현재 PLAYER_WIDTH 등을 참고해서 맞춰준다)
-    float radiusX = PLAYER_WIDTH;
-    float radiusY = PLAYER_HEIGHT;
-    float radiusZ = PLAYER_DEPTH;
+    // 팩맨 전체 스케일 (반구가 정확한 구 형태가 되도록 동일 반지름 사용)
+    float radius = PLAYER_HEIGHT; // 높이와 동일한 반지름
+    float radiusX = radius;
+    float radiusY = radius;
+    float radiusZ = radius;
 
     // 공통 회전 (플레이어 방향)
     glm::mat4 baseRot = glm::rotate(glm::mat4(1.0f),
@@ -651,16 +653,16 @@ void drawPacman(const glm::vec3& worldPos) {
         model = glm::translate(model, worldPos);
 
         // 팩맨 전체 회전 + 입 회전 (위쪽으로 열림)
-        model *= baseRot;
         model = glm::rotate(model,
             glm::radians(+g_pacmanMouthAngle),
             glm::vec3(1.0f, 0.0f, 0.0f)); // X축 기준으로 회전
+        model *= baseRot;
 
         model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
 
         glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);  // 노란 팩맨
-        drawHemisphere();
+        drawHemisphere(+1.0f);
     }
 
     // 아래 턱(반구)
@@ -668,16 +670,16 @@ void drawPacman(const glm::vec3& worldPos) {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, worldPos);
 
-        model *= baseRot;
         model = glm::rotate(model,
             glm::radians(-g_pacmanMouthAngle),
             glm::vec3(1.0f, 0.0f, 0.0f));
+        model *= baseRot;
 
         model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
 
         glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);
-        drawHemisphere();
+        drawHemisphere(-1.0f);
     }
 }
 
