@@ -460,6 +460,31 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
     glBindVertexArray(g_cubeVAO);
     glUniform3f(g_colorLoc, 0.2f, 0.5f, 1.0f);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
+
+    for (const Ghost& ghost : g_ghosts) {
+        glm::ivec2 gGrid = getGridCoord(ghost.x, ghost.z);
+        float gTileY = 0.0f;
+        float gTileScale = FLOOR_SCALE;
+        if (gGrid.y >= 0 && gGrid.y < g_gridHeight &&
+            gGrid.x >= 0 && gGrid.x < g_gridWidth) {
+            gTileY = g_cubeCurrentHeight[gGrid.y][gGrid.x];
+            gTileScale = g_cubeCurrentScale[gGrid.y][gGrid.x];
+        }
+
+        float ghostY = gTileY + (gTileScale * CUBE_SIZE * 0.5f) + (GHOST_HEIGHT / 2.0f);
+        glm::vec3 ghostWorldPos(ghost.x, ghostY, ghost.z);
+
+        glm::mat4 gModel = glm::mat4(1.0f);
+        gModel = glm::translate(gModel, ghostWorldPos);
+        gModel = glm::rotate(gModel, glm::radians(ghost.angleY), glm::vec3(0.0f, 1.0f, 0.0f));
+        gModel = glm::scale(gModel, glm::vec3(GHOST_WIDTH, GHOST_HEIGHT, GHOST_DEPTH));
+
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(gModel));
+
+        glUniform3f(g_colorLoc, 1.0f, 0.2f, 0.2f);
+        glBindVertexArray(g_cubeVAO);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
+    }
 }
 
 void display() {
