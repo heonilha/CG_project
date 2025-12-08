@@ -56,6 +56,18 @@ std::vector<std::vector<CellType>> g_maze;
 std::mt19937 g_randomEngine;
 int g_lastTime = 0;
 
+enum class GameState {
+    TITLE,
+    PLAYING,
+    GAME_CLEAR,
+    GAME_OVER
+};
+
+GameState g_gameState = GameState::TITLE;
+
+int g_score = 0;
+int g_lives = 3;
+
 std::string readShaderSource(const char* filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
@@ -189,6 +201,25 @@ void reset() {
             g_cubeCurrentHeight[i][j] = (g_cubeCurrentScale[i][j] * CUBE_SIZE) / 2.0f;
         }
     }
+}
+
+void startNewGame() {
+    reset();
+    g_score = 0;
+    g_lives = 3;
+    g_gameState = GameState::PLAYING;
+}
+
+void goToTitle() {
+    g_gameState = GameState::TITLE;
+}
+
+void goToGameOver() {
+    g_gameState = GameState::GAME_OVER;
+}
+
+void goToGameClear() {
+    g_gameState = GameState::GAME_CLEAR;
 }
 
 void init() {
