@@ -68,8 +68,16 @@ const float GHOST_MOVE_SPEED = 2.0f;  // 플레이어보다 느리게 이동
 std::vector<std::vector<float>> g_cubeCurrentHeight;
 std::vector<std::vector<float>> g_cubeCurrentScale;
 std::vector<std::vector<bool>> g_pellets;      // 해당 칸에 펠릿이 있는지 여부
+std::vector<std::vector<bool>> g_slowItems;    // Stage 2에서만 등장하는 특수 아이템
 int g_totalPellets = 0;                        // 맵 전체 펠릿 수
 int g_remainingPellets = 0;                    // 아직 안 먹은 펠릿 수
+
+bool  g_ghostSlowActive = false;
+float g_ghostSlowTimer = 0.0f;
+float g_ghostSpeedScale = 1.0f;      // 1.0 = 기본, 0.5 = 절반 속도 등
+
+const float GHOST_SLOW_DURATION = 5.0f;   // 5초 동안 지속 (나중에 조절 가능)
+const float GHOST_SLOW_SCALE    = 0.5f;   // 유령 속도 50%로 감소
 
 enum CellType { WALL, PATH };
 std::vector<std::vector<CellType>> g_maze;
@@ -203,6 +211,7 @@ void initCubes() {
     g_cubeCurrentHeight.resize(g_gridHeight, std::vector<float>(g_gridWidth));
     g_cubeCurrentScale.resize(g_gridHeight, std::vector<float>(g_gridWidth));
     g_pellets.resize(g_gridHeight, std::vector<bool>(g_gridWidth, false));
+    g_slowItems.resize(g_gridHeight, std::vector<bool>(g_gridWidth, false));
     g_randomEngine.seed(static_cast<unsigned int>(std::time(0)));
 }
 
@@ -211,6 +220,10 @@ void reset() {
     int stageGridHeight = 11;
     float loopProbability = 0.35f;
     int ghostCount = 3;
+
+    g_ghostSlowActive = false;
+    g_ghostSlowTimer = 0.0f;
+    g_ghostSpeedScale = 1.0f;
 
     if (g_currentStage == 2) {
         stageGridWidth = 25;
@@ -233,6 +246,7 @@ void reset() {
     initCubes();
 
     g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
+    g_slowItems.assign(g_gridHeight, std::vector<bool>(g_gridWidth, false));
     g_totalPellets = 0;
     g_remainingPellets = 0;
     int range = (g_gridWidth - 3) / 2;
@@ -308,6 +322,34 @@ void reset() {
                 g_remainingPellets++;
             }
             g_cubeCurrentHeight[i][j] = (g_cubeCurrentScale[i][j] * CUBE_SIZE) / 2.0f;
+        }
+    }
+
+    if (g_currentStage == 2) {
+        std::vector<std::pair<int, int>> pathCells;
+        for (int i = 0; i < g_gridHeight; ++i) {
+            for (int j = 0; j < g_gridWidth; ++j) {
+                if (g_maze[i][j] == PATH) {
+                    pathCells.emplace_back(j, i);
+                }
+            }
+        }
+
+        if (!pathCells.empty()) {
+            std::shuffle(pathCells.begin(), pathCells.end(), g_randomEngine);
+            std::uniform_int_distribution<int> slowItemDist(3, 5);
+            int slowItemCount = std::min(static_cast<int>(pathCells.size()), slowItemDist(g_randomEngine));
+
+            for (int idx = 0; idx < slowItemCount; ++idx) {
+                int x = pathCells[idx].first;
+                int y = pathCells[idx].second;
+                g_slowItems[y][x] = true;
+                if (g_pellets[y][x]) {
+                    g_pellets[y][x] = false;
+                    g_totalPellets--;
+                    g_remainingPellets--;
+                }
+            }
         }
     }
 }
@@ -478,6 +520,23 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
                 drawCube();
             }
 
+            if (g_isMinimapView && g_maze[i][j] == PATH && g_slowItems[i][j]) {
+                glm::mat4 itemModel = glm::mat4(1.0f);
+
+                float itemY = g_cubeCurrentHeight[i][j]
+                    + (g_cubeCurrentScale[i][j] * CUBE_SIZE * 0.5f)
+                    + 0.025f;
+
+                itemModel = glm::translate(itemModel, glm::vec3(x, itemY, z));
+
+                float itemScale = CUBE_SIZE * 0.22f;
+                itemModel = glm::scale(itemModel, glm::vec3(itemScale, itemScale, itemScale));
+
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(itemModel));
+                glUniform3f(g_colorLoc, 0.2f, 0.8f, 1.0f);
+                drawCube();
+            }
+
             // 펠릿 그리기 (메인 화면에서만)
             if (!g_isMinimapView && g_maze[i][j] == PATH && g_pellets[i][j]) {
                 glm::mat4 pelletModel = glm::mat4(1.0f);
@@ -490,6 +549,20 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
 
                 glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(pelletModel));
                 glUniform3f(g_colorLoc, 1.0f, 0.9f, 0.2f);
+                drawCube();
+            }
+
+            if (!g_isMinimapView && g_maze[i][j] == PATH && g_slowItems[i][j]) {
+                glm::mat4 itemModel = glm::mat4(1.0f);
+
+                float itemY = g_cubeCurrentHeight[i][j] + (g_cubeCurrentScale[i][j] * CUBE_SIZE * 0.5f) + 0.06f;
+                itemModel = glm::translate(itemModel, glm::vec3(x, itemY, z));
+
+                float itemScale = 0.25f;
+                itemModel = glm::scale(itemModel, glm::vec3(itemScale, itemScale, itemScale));
+
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(itemModel));
+                glUniform3f(g_colorLoc, 0.2f, 0.8f, 1.0f);
                 drawCube();
             }
         }
@@ -693,6 +766,13 @@ void handlePlayerInput(float deltaTime) {
                     goToGameClear();
                 }
             }
+
+            if (g_maze[playerGrid.y][playerGrid.x] == PATH && g_slowItems[playerGrid.y][playerGrid.x]) {
+                g_slowItems[playerGrid.y][playerGrid.x] = false;
+                g_ghostSlowActive = true;
+                g_ghostSlowTimer = GHOST_SLOW_DURATION;
+                g_ghostSpeedScale = GHOST_SLOW_SCALE;
+            }
         }
     }
 
@@ -709,6 +789,13 @@ void handlePlayerInput(float deltaTime) {
             if (g_remainingPellets <= 0) {
                 goToGameClear();
             }
+        }
+
+        if (g_maze[playerGrid.y][playerGrid.x] == PATH && g_slowItems[playerGrid.y][playerGrid.x]) {
+            g_slowItems[playerGrid.y][playerGrid.x] = false;
+            g_ghostSlowActive = true;
+            g_ghostSlowTimer = GHOST_SLOW_DURATION;
+            g_ghostSpeedScale = GHOST_SLOW_SCALE;
         }
     }
 }
@@ -813,7 +900,7 @@ void updateGhosts(float deltaTime) {
             }
         }
 
-        float moveSpeed = ghost.speed > 0.0f ? ghost.speed : GHOST_MOVE_SPEED;
+        float moveSpeed = (ghost.speed > 0.0f ? ghost.speed : GHOST_MOVE_SPEED) * g_ghostSpeedScale;
         ghost.x += ghost.dirX * moveSpeed * deltaTime;
         ghost.z += ghost.dirZ * moveSpeed * deltaTime;
 
@@ -846,6 +933,14 @@ void update(int value) {
     float deltaTime = (currentTime - g_lastTime) / 1000.0f;
     if (deltaTime < 0.001f) deltaTime = 0.001f;
     g_lastTime = currentTime;
+
+    if (g_ghostSlowActive) {
+        g_ghostSlowTimer -= deltaTime;
+        if (g_ghostSlowTimer <= 0.0f) {
+            g_ghostSlowActive = false;
+            g_ghostSpeedScale = 1.0f;
+        }
+    }
 
     if (g_gameState == GameState::PLAYING) {
         handlePlayerInput(deltaTime);
