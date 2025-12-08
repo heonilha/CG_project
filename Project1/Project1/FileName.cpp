@@ -207,10 +207,10 @@ void initCubes() {
 }
 
 void reset() {
-    int stageGridWidth = 21;
-    int stageGridHeight = 21;
+    int stageGridWidth = 11;
+    int stageGridHeight = 11;
     float loopProbability = 0.35f;
-    int ghostCount = 5;
+    int ghostCount = 3;
 
     if (g_currentStage == 2) {
         stageGridWidth = 25;
