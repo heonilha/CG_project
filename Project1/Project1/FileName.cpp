@@ -4,7 +4,6 @@
 #include <gl/glm/glm.hpp>
 #include <gl/glm/ext.hpp>
 #include <gl/glm/gtc/matrix_transform.hpp>
-#include <gl/glm/gtc/matrix_inverse.hpp>
 
 #include <iostream>
 #include <vector>
@@ -32,7 +31,7 @@ GLsizei g_sphereIndexCount = 0;
 
 GLuint g_cylinderVAO = 0, g_cylinderVBO = 0, g_cylinderEBO = 0;
 GLsizei g_cylinderIndexCount = 0;
-GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1, g_lightPosLoc = -1, g_normalMatLoc = -1;
+GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1, g_lightPosLoc = -1;
 
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -394,12 +393,6 @@ void goToGameClear() {
     }
 }
 
-void setModelUniforms(const glm::mat4& model) {
-    glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    glm::mat3 normalMat = glm::mat3(glm::transpose(glm::inverse(model)));
-    glUniformMatrix3fv(g_normalMatLoc, 1, GL_FALSE, glm::value_ptr(normalMat));
-}
-
 void initSphereMesh(int sectorCount, int stackCount) {
     const float radius = 0.5f;
     const float PI = 3.14159265358979323846f;
@@ -419,11 +412,6 @@ void initSphereMesh(int sectorCount, int stackCount) {
             vertices.push_back(x);
             vertices.push_back(y);
             vertices.push_back(z);
-
-            glm::vec3 normal = glm::normalize(glm::vec3(x, y, z));
-            vertices.push_back(normal.x);
-            vertices.push_back(normal.y);
-            vertices.push_back(normal.z);
         }
     }
 
@@ -457,11 +445,8 @@ void initSphereMesh(int sectorCount, int stackCount) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_sphereEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -538,8 +523,6 @@ void initCylinderMesh(int sectorCount) {
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
-    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -577,7 +560,6 @@ void init() {
     g_projLoc = glGetUniformLocation(g_shaderProgram, "projection");
     g_colorLoc = glGetUniformLocation(g_shaderProgram, "objectColor");
     g_lightPosLoc = glGetUniformLocation(g_shaderProgram, "lightPos");
-    g_normalMatLoc = glGetUniformLocation(g_shaderProgram, "normalMatrix");
     g_clipSignLoc = glGetUniformLocation(g_shaderProgram, "clipSign");
 
     float s = 0.5f;
@@ -591,8 +573,6 @@ void init() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
-    glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0); glBindVertexArray(0);
 
     initSphereMesh(24, 16);
@@ -681,7 +661,7 @@ void drawPacman(const glm::vec3& worldPos) {
 
         model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
 
-        setModelUniforms(model);
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);  // 노란 팩맨
         drawHemisphere(+1.0f);
     }
@@ -698,7 +678,7 @@ void drawPacman(const glm::vec3& worldPos) {
 
         model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
 
-        setModelUniforms(model);
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);
         drawHemisphere(-1.0f);
     }
@@ -726,7 +706,7 @@ void drawGhost(const Ghost& ghost) {
         model = glm::rotate(model, glm::radians(ghost.angleY), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(GHOST_WIDTH, bodyHeight, GHOST_DEPTH));
 
-        setModelUniforms(model);
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 0.6f, 0.6f, 0.6f);  // 회색 유령
         drawCylinder();
     }
@@ -738,7 +718,7 @@ void drawGhost(const Ghost& ghost) {
         model = glm::rotate(model, glm::radians(ghost.angleY), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(headRadius, headRadius, headRadius));
 
-        setModelUniforms(model);
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 0.6f, 0.6f, 0.6f);
         drawSphere();
     }
@@ -765,7 +745,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(x, y, z));
             model = glm::scale(model, glm::vec3(CUBE_SIZE, scaleY * CUBE_SIZE, CUBE_SIZE));
-            setModelUniforms(model);
+            glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
             // ★ 여기서 색 결정
             if (g_isMinimapView) {
@@ -803,7 +783,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
                 float pelletScale = CUBE_SIZE * 0.2f;
                 pelletModel = glm::scale(pelletModel, glm::vec3(pelletScale, pelletScale, pelletScale));
 
-                setModelUniforms(pelletModel);
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(pelletModel));
                 glUniform3f(g_colorLoc, 1.0f, 0.9f, 0.2f);
                 drawCube();
             }
@@ -820,7 +800,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
                 float itemScale = CUBE_SIZE * 0.22f;
                 itemModel = glm::scale(itemModel, glm::vec3(itemScale, itemScale, itemScale));
 
-                setModelUniforms(itemModel);
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(itemModel));
                 glUniform3f(g_colorLoc, 0.2f, 0.8f, 1.0f);
                 drawCube();
             }
@@ -835,7 +815,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
                 float pelletScale = 0.2f;
                 pelletModel = glm::scale(pelletModel, glm::vec3(pelletScale, pelletScale, pelletScale));
 
-                setModelUniforms(pelletModel);
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(pelletModel));
                 glUniform3f(g_colorLoc, 1.0f, 0.9f, 0.2f);
                 drawCube();
             }
@@ -849,7 +829,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
                 float itemScale = 0.25f;
                 itemModel = glm::scale(itemModel, glm::vec3(itemScale, itemScale, itemScale));
 
-                setModelUniforms(itemModel);
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(itemModel));
                 glUniform3f(g_colorLoc, 0.2f, 0.8f, 1.0f);
                 drawCube();
             }
