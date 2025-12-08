@@ -29,14 +29,6 @@ GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1;
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-float g_cameraAngleY = 0.0f;
-float g_cameraDistance = 15.0f;
-const float DEFAULT_CAM_ANGLE = 0.0f;
-const float DEFAULT_CAM_DIST = 15.0f;
-bool g_isPerspective = true;
-
-bool g_isPlayerView = false;
-bool g_isFirstPerson = false;
 float g_playerPosX = 0.0f;
 float g_playerPosZ = 0.0f;
 float g_playerAngleY = 0.0f;
@@ -47,8 +39,6 @@ const float PLAYER_WIDTH = 0.3f;
 const float PLAYER_HEIGHT = 0.5f;
 const float PLAYER_DEPTH = 0.3f;
 const float PLAYER_MOVE_SPEED = 2.0f;
-const float PLAYER_TURN_SPEED = 100.0f;
-
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
 const float GRID_BASE_SCALE = 1.0f;
@@ -164,12 +154,6 @@ void reset() {
     g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
     g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    g_cameraAngleY = DEFAULT_CAM_ANGLE;
-    g_cameraDistance = DEFAULT_CAM_DIST;
-
-    g_isPerspective = true;
-    g_isPlayerView = false;
-    g_isFirstPerson = false;
     g_playerAngleY = 0.0f;
 
     for (int i = 0; i < 256; i++) g_keyStates[i] = false;
@@ -251,12 +235,6 @@ void drawCube() {
     glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, (void*)(6 * sizeof(GLuint)));
 }
 
-void updateCamera() {
-    float camX = g_cameraDistance * std::sin(glm::radians(g_cameraAngleY));
-    float camZ = g_cameraDistance * std::cos(glm::radians(g_cameraAngleY));
-    g_cameraPos = glm::vec3(camX, g_cameraPos.y, camZ);
-}
-
 void drawGrid(glm::mat4 view, glm::mat4 projection) {
     glUseProgram(g_shaderProgram);
     glUniformMatrix4fv(g_viewLoc, 1, GL_FALSE, glm::value_ptr(view));
@@ -280,25 +258,23 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
         }
     }
 
-    if (g_isPlayerView && !g_isFirstPerson) {
-        glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
-        float tileY = 0.0f;
-        float tileScale = 0.0f;
-        if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
-            tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
-            tileScale = g_cubeCurrentScale[gridPos.y][gridPos.x];
-        }
-        float playerDrawY = tileY + (tileScale * CUBE_SIZE / 2.0f) + (PLAYER_HEIGHT / 2.0f);
-        glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, playerDrawY, g_playerPosZ);
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, playerWorldPos);
-        model = glm::rotate(model, glm::radians(g_playerAngleY), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH));
-        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glBindVertexArray(g_cubeVAO);
-        glUniform3f(g_colorLoc, 0.2f, 0.5f, 1.0f);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
+    glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
+    float tileY = 0.0f;
+    float tileScale = 0.0f;
+    if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
+        tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
+        tileScale = g_cubeCurrentScale[gridPos.y][gridPos.x];
     }
+    float playerDrawY = tileY + (tileScale * CUBE_SIZE / 2.0f) + (PLAYER_HEIGHT / 2.0f);
+    glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, playerDrawY, g_playerPosZ);
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, playerWorldPos);
+    model = glm::rotate(model, glm::radians(g_playerAngleY), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH));
+    glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glBindVertexArray(g_cubeVAO);
+    glUniform3f(g_colorLoc, 0.2f, 0.5f, 1.0f);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
 }
 
 void display() {
@@ -306,48 +282,22 @@ void display() {
     glViewport(0, 0, g_windowWidth, g_windowHeight);
     glm::mat4 view(1.0f);
 
-    if (g_isPlayerView) {
-        glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
-        float tileY = 0.0f;
-        if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
-            tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
-        }
-        glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
-        float angleRad = glm::radians(g_playerAngleY);
-
-        if (g_isFirstPerson) {
-            float floorOffset = (GRID_BASE_SCALE * CUBE_SIZE / 2.0f);
-            float eyeLevelFromFloor = PLAYER_HEIGHT * 0.4f;
-
-            g_cameraPos = glm::vec3(g_playerPosX, tileY + floorOffset + eyeLevelFromFloor, g_playerPosZ);
-
-            glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
-            g_cameraTarget = g_cameraPos + forward;
-        }
-        else {
-            float camX = playerWorldPos.x - glm::sin(angleRad) * 6.0f;
-            float camZ = playerWorldPos.z - glm::cos(angleRad) * 6.0f;
-            float camY = playerWorldPos.y + 5.0f;
-            g_cameraPos = glm::vec3(camX, camY, camZ);
-            g_cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
-        }
-
-        view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
+    glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
+    float tileY = 0.0f;
+    if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
+        tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
     }
-    else {
-        updateCamera();
-        view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
-    }
+    glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
+    float angleRad = glm::radians(g_playerAngleY);
+    glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
+    glm::vec3 camOffset = -forward * 6.0f + glm::vec3(0.0f, 8.0f, 0.0f);
+    g_cameraPos = playerWorldPos + camOffset;
+    g_cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
+    view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
 
     glm::mat4 projection(1.0f);
     float aspect = (float)g_windowWidth / g_windowHeight;
-    if (g_isPerspective) {
-        projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
-    }
-    else {
-        float orthoSize = g_cameraDistance * 0.5f;
-        projection = glm::ortho(-orthoSize * aspect, orthoSize * aspect, -orthoSize, orthoSize, -100.0f, 100.0f);
-    }
+    projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
 
     drawGrid(view, projection);
 
@@ -373,30 +323,12 @@ void reshape(int w, int h) {
 }
 
 void handlePlayerInput(float deltaTime) {
-    float turnDelta = PLAYER_TURN_SPEED * deltaTime;
-    if (g_isPlayerView) {
-        if (g_keyStates['y']) g_playerAngleY += turnDelta;
-        if (g_keyStates['Y']) g_playerAngleY -= turnDelta;
-    }
-    else {
-        if (g_keyStates['y']) g_cameraAngleY += 3.0f;
-        if (g_keyStates['Y']) g_cameraAngleY -= 3.0f;
-    }
-    if (g_keyStates['z']) g_cameraDistance += 0.1f;
-    if (g_keyStates['Z']) g_cameraDistance -= 0.1f;
-
-    if (!g_isPlayerView) return;
-
-    float angleRad = glm::radians(g_playerAngleY);
-    glm::vec3 forward(glm::sin(angleRad), 0, glm::cos(angleRad));
-    glm::vec3 right(forward.z, 0, -forward.x);
-
     glm::vec3 moveVector(0.0f, 0.0f, 0.0f);
 
-    if (g_specialKeyStates[GLUT_KEY_UP])    moveVector += forward;
-    if (g_specialKeyStates[GLUT_KEY_DOWN])  moveVector -= forward;
-    if (g_specialKeyStates[GLUT_KEY_LEFT])  moveVector += right;
-    if (g_specialKeyStates[GLUT_KEY_RIGHT]) moveVector -= right;
+    if (g_specialKeyStates[GLUT_KEY_UP] || g_keyStates['w'] || g_keyStates['W'])    moveVector += glm::vec3(0.0f, 0.0f, 1.0f);
+    if (g_specialKeyStates[GLUT_KEY_DOWN] || g_keyStates['s'] || g_keyStates['S'])  moveVector -= glm::vec3(0.0f, 0.0f, 1.0f);
+    if (g_specialKeyStates[GLUT_KEY_LEFT] || g_keyStates['a'] || g_keyStates['A'])  moveVector -= glm::vec3(1.0f, 0.0f, 0.0f);
+    if (g_specialKeyStates[GLUT_KEY_RIGHT] || g_keyStates['d'] || g_keyStates['D']) moveVector += glm::vec3(1.0f, 0.0f, 0.0f);
 
     if (glm::length(moveVector) > 0.0f) {
         moveVector = glm::normalize(moveVector) * PLAYER_MOVE_SPEED * deltaTime;
@@ -411,6 +343,9 @@ void handlePlayerInput(float deltaTime) {
         if (gridPos.x >= 0 && gridPos.x < g_gridWidth && gridPos.y >= 0 && gridPos.y < g_gridHeight && g_maze[gridPos.y][gridPos.x] == PATH) {
             g_playerPosZ = newZ;
         }
+
+        float angleRad = std::atan2(moveVector.x, moveVector.z);
+        g_playerAngleY = glm::degrees(angleRad);
     }
 }
 
@@ -431,40 +366,11 @@ void keyboard(unsigned char key, int x, int y) {
 
     switch (key) {
     case 'q': case 'Q':
+    case 27:
         glutLeaveMainLoop();
         break;
     case 'c': case 'C':
-        std::cout << "  ʱȭ" << std::endl;
         reset();
-        break;
-
-    case 'o': case 'O':
-        g_isPerspective = false;
-        std::cout << " :  " << std::endl;
-        break;
-    case 'p': case 'P':
-        g_isPerspective = true;
-        std::cout << " :  " << std::endl;
-        break;
-
-    case '1':
-        if (g_isPlayerView) {
-            g_isFirstPerson = true;
-            std::cout << ": 1Ī" << std::endl;
-        }
-        break;
-    case '3':
-        if (g_isPlayerView) {
-            g_isFirstPerson = false;
-            std::cout << ": 3Ī" << std::endl;
-        }
-        break;
-
-    case 'y': case 'Y':
-        std::cout << "ȸ (Y)" << std::endl;
-        break;
-    case 'z': case 'Z':
-        std::cout << " (Z)" << std::endl;
         break;
     }
 }
@@ -482,12 +388,6 @@ void keyboardUp(unsigned char key, int x, int y) {
 void specialKey(int key, int x, int y) {
     if (key >= 0 && key < 128) {
         g_specialKeyStates[key] = true;
-        switch (key) {
-        case GLUT_KEY_UP: std::cout << "̵: " << std::endl; break;
-        case GLUT_KEY_DOWN: std::cout << "̵: " << std::endl; break;
-        case GLUT_KEY_LEFT: std::cout << "̵: " << std::endl; break;
-        case GLUT_KEY_RIGHT: std::cout << "̵: " << std::endl; break;
-        }
     }
 }
 
