@@ -51,28 +51,13 @@ const float PLAYER_TURN_SPEED = 100.0f;
 
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
-
-bool g_isInitialAnimating = true;
-bool g_isOscillating = false;
-float g_animationSpeed = 1.0f;
-const float DEFAULT_SPEED = 1.0f;
-
-const float MIN_HEIGHT = -5.0f;
 const float GRID_BASE_SCALE = 1.0f;
-const float HIDDEN_SCALE = 0.01f;
-
-std::vector<std::vector<float>> g_cubeRandomSpeedFactors;
-std::vector<std::vector<float>> g_cubeRandomMaxScales;
-std::vector<std::vector<int>> g_cubeDirections;
-std::vector<std::vector<float>> g_cubeOscillationScale;
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
 std::vector<std::vector<float>> g_cubeCurrentScale;
 
 enum CellType { WALL, PATH };
 std::vector<std::vector<CellType>> g_maze;
-bool g_mazeGenerated = false;
-bool g_wallsHidden = false;
 
 std::mt19937 g_randomEngine;
 int g_lastTime = 0;
@@ -168,10 +153,6 @@ void generateMaze(int x, int z) {
 
 void initCubes() {
     g_maze.resize(g_gridHeight, std::vector<CellType>(g_gridWidth));
-    g_cubeRandomSpeedFactors.resize(g_gridHeight, std::vector<float>(g_gridWidth));
-    g_cubeRandomMaxScales.resize(g_gridHeight, std::vector<float>(g_gridWidth));
-    g_cubeDirections.resize(g_gridHeight, std::vector<int>(g_gridWidth));
-    g_cubeOscillationScale.resize(g_gridHeight, std::vector<float>(g_gridWidth));
     g_cubeCurrentHeight.resize(g_gridHeight, std::vector<float>(g_gridWidth));
     g_cubeCurrentScale.resize(g_gridHeight, std::vector<float>(g_gridWidth));
     g_randomEngine.seed(static_cast<unsigned int>(std::time(0)));
@@ -185,14 +166,9 @@ void reset() {
     g_cameraDistance = DEFAULT_CAM_DIST;
 
     g_isPerspective = true;
-    g_isInitialAnimating = true;
-    g_isOscillating = false;
-    g_wallsHidden = false;
-    g_mazeGenerated = false;
     g_isPlayerView = false;
     g_isFirstPerson = false;
     g_playerAngleY = 0.0f;
-    g_animationSpeed = DEFAULT_SPEED;
 
     for (int i = 0; i < 256; i++) g_keyStates[i] = false;
     for (int i = 0; i < 128; i++) g_specialKeyStates[i] = false;
@@ -209,23 +185,15 @@ void reset() {
     g_maze[0][g_mazeStartX] = PATH;
     g_maze[1][g_mazeStartX] = PATH;
     g_maze[g_gridHeight - 1][g_mazeEndX] = PATH;
-    g_mazeGenerated = true;
 
     glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
     g_playerPosX = playerStartPos.x;
     g_playerPosZ = playerStartPos.z;
 
-    std::uniform_real_distribution<float> speedDist(0.7f, 1.5f);
-    std::uniform_real_distribution<float> maxScaleDist(2.5f, 5.0f);
-
     for (int i = 0; i < g_gridHeight; ++i) {
         for (int j = 0; j < g_gridWidth; ++j) {
             g_cubeCurrentScale[i][j] = GRID_BASE_SCALE;
-            g_cubeCurrentHeight[i][j] = MIN_HEIGHT;
-            g_cubeRandomSpeedFactors[i][j] = speedDist(g_randomEngine);
-            g_cubeRandomMaxScales[i][j] = maxScaleDist(g_randomEngine);
-            g_cubeDirections[i][j] = 1;
-            g_cubeOscillationScale[i][j] = 0.0f;
+            g_cubeCurrentHeight[i][j] = (GRID_BASE_SCALE * CUBE_SIZE) / 2.0f;
         }
     }
 }
@@ -398,8 +366,6 @@ void reshape(int w, int h) {
 }
 
 void handlePlayerInput(float deltaTime) {
-    if (g_isInitialAnimating) return;
-
     float turnDelta = PLAYER_TURN_SPEED * deltaTime;
     if (g_isPlayerView) {
         if (g_keyStates['y']) g_playerAngleY += turnDelta;
@@ -446,62 +412,8 @@ void update(int value) {
     float deltaTime = (currentTime - g_lastTime) / 1000.0f;
     if (deltaTime < 0.001f) deltaTime = 0.001f;
     g_lastTime = currentTime;
-    float currentSpeed = g_animationSpeed * deltaTime;
 
     handlePlayerInput(deltaTime);
-
-    if (g_isInitialAnimating) {
-        bool allCubesAtTarget = true;
-        float targetScale = GRID_BASE_SCALE;
-        float targetHeight = (targetScale * CUBE_SIZE) / 2.0f;
-        for (int i = 0; i < g_gridHeight; ++i) {
-            for (int j = 0; j < g_gridWidth; ++j) {
-                if (g_cubeCurrentHeight[i][j] < targetHeight) {
-                    g_cubeCurrentHeight[i][j] += currentSpeed * 2.0f;
-                    if (g_cubeCurrentHeight[i][j] >= targetHeight) {
-                        g_cubeCurrentHeight[i][j] = targetHeight;
-                    }
-                    else {
-                        allCubesAtTarget = false;
-                    }
-                }
-                g_cubeCurrentScale[i][j] = targetScale;
-            }
-        }
-        if (allCubesAtTarget) {
-            g_isInitialAnimating = false;
-            std::cout << "ִϸ̼ Ϸ" << std::endl;
-        }
-    }
-    else {
-        for (int i = 0; i < g_gridHeight; ++i) {
-            for (int j = 0; j < g_gridWidth; ++j) {
-                float finalScale = GRID_BASE_SCALE;
-                if (g_isOscillating) {
-                    float speedFactor = g_cubeRandomSpeedFactors[i][j];
-                    float maxOscScale = g_cubeRandomMaxScales[i][j];
-                    float cubeSpeed = currentSpeed * speedFactor;
-                    g_cubeOscillationScale[i][j] += g_cubeDirections[i][j] * cubeSpeed;
-
-                    float oscScale = g_cubeOscillationScale[i][j];
-                    if (oscScale > maxOscScale) {
-                        oscScale = maxOscScale; g_cubeDirections[i][j] = -1;
-                    }
-                    else if (oscScale < 0.0f) {
-                        oscScale = 0.0f; g_cubeDirections[i][j] = 1;
-                    }
-                    g_cubeOscillationScale[i][j] = oscScale;
-                }
-                finalScale += g_cubeOscillationScale[i][j];
-
-                if (g_wallsHidden && g_maze[i][j] == PATH) {
-                    finalScale = HIDDEN_SCALE;
-                }
-                g_cubeCurrentScale[i][j] = finalScale;
-                g_cubeCurrentHeight[i][j] = (finalScale * CUBE_SIZE) / 2.0f;
-            }
-        }
-    }
 
     glutPostRedisplay();
     glutTimerFunc(16, update, 0);
@@ -517,32 +429,6 @@ void keyboard(unsigned char key, int x, int y) {
     case 'c': case 'C':
         std::cout << "  ʱȭ" << std::endl;
         reset();
-        break;
-    case 'm':
-        if (g_isInitialAnimating) break;
-        g_isOscillating = true;
-        std::cout << " " << std::endl;
-        break;
-    case 'M':
-        if (g_isInitialAnimating) break;
-        g_isOscillating = false;
-        std::cout << " Ͻ " << std::endl;
-        break;
-
-    case 'v': case 'V':
-        if (g_isInitialAnimating) break;
-        g_isOscillating = false;
-        std::cout << " ʱȭ ( )" << std::endl;
-        for (int i = 0; i < g_gridHeight; ++i) {
-            for (int j = 0; j < g_gridWidth; ++j) {
-                g_cubeOscillationScale[i][j] = 0.0f;
-
-                float finalScale = GRID_BASE_SCALE;
-                if (g_wallsHidden && g_maze[i][j] == WALL) finalScale = HIDDEN_SCALE;
-                g_cubeCurrentScale[i][j] = finalScale;
-                g_cubeCurrentHeight[i][j] = (finalScale * CUBE_SIZE) / 2.0f;
-            }
-        }
         break;
 
     case 'o': case 'O':
@@ -572,16 +458,6 @@ void keyboard(unsigned char key, int x, int y) {
         break;
     case 'z': case 'Z':
         std::cout << " (Z)" << std::endl;
-        break;
-
-    case '+':
-        g_animationSpeed += 0.2f;
-        std::cout << "ӵ: " << g_animationSpeed << std::endl;
-        break;
-    case '-':
-        g_animationSpeed -= 0.2f;
-        if (g_animationSpeed < 0.2f) g_animationSpeed = 0.2f;
-        std::cout << "ӵ: " << g_animationSpeed << std::endl;
         break;
     }
 }
