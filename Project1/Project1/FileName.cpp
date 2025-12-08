@@ -88,6 +88,8 @@ GameState g_gameState = GameState::TITLE;
 
 int g_score = 0;
 int g_lives = 3;
+int g_currentStage = 1;   // 1 = Stage 1, 2 = Stage 2
+const int MAX_STAGE = 2;
 
 std::string readShaderSource(const char* filePath) {
     std::ifstream file(filePath);
@@ -205,6 +207,21 @@ void initCubes() {
 }
 
 void reset() {
+    int stageGridWidth = 21;
+    int stageGridHeight = 21;
+    float loopProbability = 0.35f;
+    int ghostCount = 5;
+
+    if (g_currentStage == 2) {
+        stageGridWidth = 25;
+        stageGridHeight = 25;
+        loopProbability = 0.5f;
+        ghostCount = 7;
+    }
+
+    g_gridWidth = stageGridWidth;
+    g_gridHeight = stageGridHeight;
+
     g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
     g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -228,7 +245,7 @@ void reset() {
     g_maze[1][g_mazeStartX] = PATH;
     g_maze[g_gridHeight - 1][g_mazeEndX] = PATH;
 
-    addMazeLoops(0.35f);
+    addMazeLoops(loopProbability);
 
     glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
     g_playerPosX = playerStartPos.x;
@@ -267,8 +284,16 @@ void reset() {
         g_ghosts.push_back(ghost);
     };
 
-    addGhostAt(g_mazeEndX, g_gridHeight - 2, 0, 1);
-    addGhostAt(g_gridWidth / 2, g_gridHeight / 2, 1, 0);
+    std::uniform_int_distribution<int> ghostXDist(1, g_gridWidth - 2);
+    std::uniform_int_distribution<int> ghostZDist(1, g_gridHeight - 2);
+    const int dirChoices[4][2] = { {1, 0}, {-1, 0}, {0, 1}, {0, -1} };
+
+    for (int i = 0; i < ghostCount; ++i) {
+        int dirIndex = i % 4;
+        int dirX = dirChoices[dirIndex][0];
+        int dirZ = dirChoices[dirIndex][1];
+        addGhostAt(ghostXDist(g_randomEngine), ghostZDist(g_randomEngine), dirX, dirZ);
+    }
 
     for (int i = 0; i < g_gridHeight; ++i) {
         for (int j = 0; j < g_gridWidth; ++j) {
@@ -288,9 +313,10 @@ void reset() {
 }
 
 void startNewGame() {
-    reset();
+    g_currentStage = 1;
     g_score = 0;
     g_lives = 3;
+    reset();
     g_gameState = GameState::PLAYING;
 }
 
@@ -303,7 +329,12 @@ void goToGameOver() {
 }
 
 void goToGameClear() {
-    g_gameState = GameState::GAME_CLEAR;
+    if (g_currentStage < MAX_STAGE) {
+        g_gameState = GameState::GAME_CLEAR;
+    }
+    else {
+        g_gameState = GameState::GAME_CLEAR;
+    }
 }
 
 void init() {
@@ -861,9 +892,25 @@ void keyboard(unsigned char key, int x, int y) {
         break;
 
     case GameState::GAME_OVER:
-    case GameState::GAME_CLEAR:
         if (key == 'r' || key == 'R') {
             startNewGame();
+        }
+        else if (key == 't' || key == 'T') {
+            goToTitle();
+        }
+        break;
+
+    case GameState::GAME_CLEAR:
+        if (key == 'n' || key == 'N') {
+            if (g_currentStage < MAX_STAGE) {
+                g_currentStage++;
+                reset();
+                g_gameState = GameState::PLAYING;
+            }
+        }
+        else if (key == 'r' || key == 'R') {
+            reset();
+            g_gameState = GameState::PLAYING;
         }
         else if (key == 't' || key == 'T') {
             goToTitle();
