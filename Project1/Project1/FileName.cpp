@@ -49,7 +49,7 @@ const float PLAYER_MOVE_SPEED = 4.0f;
 float g_pacmanMouthAngle = 0.0f;          // 현재 입 각도(도)
 float g_pacmanMouthDir = 1.0f;             // 1 = 열리는 중, -1 = 닫히는 중
 
-const float PACMAN_MOUTH_MAX = 70.0f;      // 최대 입 벌림 각도 (더 크게 벌리기)
+const float PACMAN_MOUTH_MAX = 55.0f;      // 최대 입 벌림 각도 (더 크게 벌리기)
 const float PACMAN_MOUTH_SPEED = 120.0f;   // 1초에 120도 정도 회전
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
@@ -992,8 +992,9 @@ void handlePlayerInput(float deltaTime) {
             g_playerPosZ = newZ;
         }
 
-        float angleRad = std::atan2(moveVector.x, moveVector.z);
-        g_playerAngleY = glm::degrees(angleRad);
+        float angleRad = std::atan2(moveVector.z, moveVector.x);
+        g_playerAngleY = glm::degrees(angleRad) - 90.0f;
+
     }
 
     glm::ivec2 playerGrid = getGridCoord(g_playerPosX, g_playerPosZ);
