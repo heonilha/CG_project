@@ -44,6 +44,8 @@ bool g_specialKeyStates[128];
 const float GRID_BASE_SCALE = 1.0f;
 const float WALL_SCALE = 2.0f;
 const float FLOOR_SCALE = 0.05f;
+bool g_isMinimapView = false;
+
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
 std::vector<std::vector<float>> g_cubeCurrentScale;
@@ -229,11 +231,20 @@ void init() {
 
 void drawCube() {
     glBindVertexArray(g_cubeVAO);
-    glUniform3f(g_colorLoc, 1.0f, 1.0f, 1.0f);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(0));
-    glUniform3f(g_colorLoc, 0.5f, 0.5f, 0.5f);
-    glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, (void*)(6 * sizeof(GLuint)));
+
+    if (g_isMinimapView) {
+        // 미니맵에서는 바깥에서 지정한 색을 그대로 사용
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
+    }
+    else {
+        // 메인 3D 화면용: 윗면/옆면 색 다르게
+        glUniform3f(g_colorLoc, 1.0f, 1.0f, 1.0f); // 윗면
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(0));
+        glUniform3f(g_colorLoc, 0.5f, 0.5f, 0.5f); // 나머지
+        glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, (void*)(6 * sizeof(GLuint)));
+    }
 }
+
 
 void drawGrid(glm::mat4 view, glm::mat4 projection) {
     glUseProgram(g_shaderProgram);
@@ -249,11 +260,34 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
             float x = startX + j * (CUBE_SIZE + GRID_SPACING);
             float z = startZ + i * (CUBE_SIZE + GRID_SPACING);
             float y = g_cubeCurrentHeight[i][j];
-            float scaleFactorY = g_cubeCurrentScale[i][j];
+            float scaleY = g_cubeCurrentScale[i][j];
+
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(x, y, z));
-            model = glm::scale(model, glm::vec3(CUBE_SIZE, CUBE_SIZE * scaleFactorY, CUBE_SIZE));
+            model = glm::scale(model, glm::vec3(CUBE_SIZE, scaleY * CUBE_SIZE, CUBE_SIZE));
             glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+            // ★ 여기서 색 결정
+            if (g_isMinimapView) {
+                // 미니맵용 색
+                if (g_maze[i][j] == WALL) {
+                    // 예: 벽 = 흰색, 바닥 = 검정
+                    glUniform3f(g_colorLoc, 1.0f, 1.0f, 1.0f);   // 벽 윗부분 밝게
+                }
+                else { // PATH
+                    glUniform3f(g_colorLoc, 0.0f, 0.0f, 0.0f);   // 바닥 검정
+                }
+            }
+            else {
+                // 메인 화면용 색(취향대로)
+                if (g_maze[i][j] == WALL) {
+                    glUniform3f(g_colorLoc, 0.4f, 0.4f, 0.9f);   // 벽 파란 계열
+                }
+                else {
+                    glUniform3f(g_colorLoc, 0.1f, 0.1f, 0.1f);   // 바닥 어두운 회색
+                }
+            }
+
             drawCube();
         }
     }
@@ -290,32 +324,74 @@ void display() {
     glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
     float angleRad = glm::radians(g_playerAngleY);
     glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
-    glm::vec3 camOffset = -forward * 6.0f + glm::vec3(0.0f, 8.0f, 0.0f);
+    // 플레이어 기준으로 항상 같은 방향에서 내려다보는 카메라
+    glm::vec3 camOffset = glm::vec3(0.0f, 8.0f, -6.0f); // 위 + 약간 뒤에서 보는 느낌
     g_cameraPos = playerWorldPos + camOffset;
     g_cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
+
     view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
 
     glm::mat4 projection(1.0f);
     float aspect = (float)g_windowWidth / g_windowHeight;
     projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
 
+    g_isMinimapView = false;
+    drawGrid(view, projection);
+    // --- Main view ---
     drawGrid(view, projection);
 
-    int minimapSizeX = g_windowWidth / 4;
-    int minimapSizeY = minimapSizeX / aspect;
+    // --- Mini-map (top-right square) ---
     int padding = 10;
+    int minimapSize = std::min(g_windowWidth, g_windowHeight) / 4; // 정사각형
+
+    int x = g_windowWidth - minimapSize - padding;
+    int y = g_windowHeight - minimapSize - padding;
+
+    // 이 영역만 배경 색으로 칠하기
     glEnable(GL_SCISSOR_TEST);
-    glScissor(g_windowWidth - minimapSizeX - padding, g_windowHeight - minimapSizeY - padding, minimapSizeX, minimapSizeY);
-    glViewport(g_windowWidth - minimapSizeX - padding, g_windowHeight - minimapSizeY - padding, minimapSizeX, minimapSizeY);
+    glScissor(x, y, minimapSize, minimapSize);
+
+    // 미니맵 배경 색 (조금 진한 회색 같은 느낌)
+    glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // 이제 이 영역에만 그리도록 뷰포트 설정
+    glViewport(x, y, minimapSize, minimapSize);
+
+
+    // 메인 화면은 그대로 두고, 미니맵 영역에서는 깊이만 초기화
     glClear(GL_DEPTH_BUFFER_BIT);
-    glm::mat4 minimapView = glm::lookAt(glm::vec3(0.0f, 15.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    float minimapAspect = (float)minimapSizeX / (float)minimapSizeY;
-    glm::mat4 minimapProj = glm::perspective(glm::radians(45.0f), minimapAspect, 0.1f, 100.0f);
+
+    // 미로 전체 범위 계산
+    float totalGridWidth = (g_gridWidth - 1) * (CUBE_SIZE + GRID_SPACING);
+    float totalGridHeight = (g_gridHeight - 1) * (CUBE_SIZE + GRID_SPACING);
+    float halfW = totalGridWidth * 0.5f;
+    float halfH = totalGridHeight * 0.5f;
+
+    // 위에서 직각으로 내려다보는 카메라
+    glm::mat4 minimapView = glm::lookAt(
+        glm::vec3(0.0f, 30.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f) // 위쪽 기준
+    );
+
+    // 전체가 다 들어오도록 orthographic
+    glm::mat4 minimapProj = glm::ortho(
+        -halfW * 1.1f, halfW * 1.1f,
+        -halfH * 1.1f, halfH * 1.1f,
+        0.1f, 100.0f
+    );
+
+    // 미니맵 모드로 그리기
+    g_isMinimapView = true;
     drawGrid(minimapView, minimapProj);
+    g_isMinimapView = false;
+
     glDisable(GL_SCISSOR_TEST);
     glBindVertexArray(0);
     glutSwapBuffers();
 }
+
 
 void reshape(int w, int h) {
     g_windowWidth = w;
