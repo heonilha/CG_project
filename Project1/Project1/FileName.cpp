@@ -36,6 +36,10 @@ GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSi
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+float g_cameraYaw   = 0.0f;   // 마우스로 회전시킬 카메라 yaw
+float g_cameraPitch = 0.0f;   // 상하는 고정할 것이라 pitch는 0 유지
+float g_lastMouseX  = -1.0f;  // 초기값
+float g_mouseSensitivity = 0.1f;
 float g_playerPosX = 0.0f;
 float g_playerPosZ = 0.0f;
 float g_playerAngleY = 0.0f;
@@ -865,17 +869,17 @@ void display() {
 
         glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
 
-        // 플레이어의 바라보는 방향 벡터 (Z+ 기준)
-        float angleRad = glm::radians(g_playerAngleY);
-        glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
+        float yawRad = glm::radians(g_cameraYaw);
+        glm::vec3 camForward(sin(yawRad), 0.0f, cos(yawRad));
 
         // 3인칭 카메라 파라미터
         const float CAM_DISTANCE = 6.0f;   // 얼마나 뒤로 떨어질지
         const float CAM_HEIGHT   = 4.0f;   // 얼마나 위에 있을지
         const float LOOK_HEIGHT  = 1.0f;   // 팩맨의 어느 높이를 볼지
 
-        // 팩맨 뒤쪽으로 CAM_DISTANCE만큼, 위로 CAM_HEIGHT만큼
-        glm::vec3 camOffset = -forward * CAM_DISTANCE + glm::vec3(0.0f, CAM_HEIGHT, 0.0f);
+        glm::vec3 camOffset =
+            -camForward * CAM_DISTANCE +
+            glm::vec3(0.0f, CAM_HEIGHT, 0.0f);
 
         g_cameraPos    = playerWorldPos + camOffset;
         g_cameraTarget = playerWorldPos + glm::vec3(0.0f, LOOK_HEIGHT, 0.0f);
@@ -982,13 +986,21 @@ void reshape(int w, int h) {
 void handlePlayerInput(float deltaTime) {
     glm::vec3 moveVector(0.0f, 0.0f, 0.0f);
 
-    if (g_specialKeyStates[GLUT_KEY_UP] || g_keyStates['w'] || g_keyStates['W'])    moveVector += glm::vec3(0.0f, 0.0f, 1.0f);
-    if (g_specialKeyStates[GLUT_KEY_DOWN] || g_keyStates['s'] || g_keyStates['S'])  moveVector -= glm::vec3(0.0f, 0.0f, 1.0f);
-    if (g_specialKeyStates[GLUT_KEY_LEFT] || g_keyStates['a'] || g_keyStates['A'])  moveVector += glm::vec3(1.0f, 0.0f, 0.0f);
-    if (g_specialKeyStates[GLUT_KEY_RIGHT] || g_keyStates['d'] || g_keyStates['D']) moveVector -= glm::vec3(1.0f, 0.0f, 0.0f);
+    float yawRad = glm::radians(g_cameraYaw);
+    glm::vec3 camForward(sin(yawRad), 0.0f, cos(yawRad));
+    glm::vec3 camRight = glm::normalize(glm::cross(camForward, glm::vec3(0.0f, 1.0f, 0.0f)));
+
+    glm::vec3 camForwardDir = glm::normalize(camForward);
+    glm::vec3 camRightDir   = glm::normalize(camRight);
+
+    if (g_specialKeyStates[GLUT_KEY_UP] || g_keyStates['w'] || g_keyStates['W'])    moveVector += camForwardDir;
+    if (g_specialKeyStates[GLUT_KEY_DOWN] || g_keyStates['s'] || g_keyStates['S'])  moveVector -= camForwardDir;
+    if (g_specialKeyStates[GLUT_KEY_LEFT] || g_keyStates['a'] || g_keyStates['A'])  moveVector -= camRightDir;
+    if (g_specialKeyStates[GLUT_KEY_RIGHT] || g_keyStates['d'] || g_keyStates['D']) moveVector += camRightDir;
 
     if (glm::length(moveVector) > 0.0f) {
-        moveVector = glm::normalize(moveVector) * PLAYER_MOVE_SPEED * deltaTime;
+        glm::vec3 moveDir = glm::normalize(moveVector);
+        moveVector = moveDir * PLAYER_MOVE_SPEED * deltaTime;
         float newX = g_playerPosX + moveVector.x;
         float newZ = g_playerPosZ + moveVector.z;
 
@@ -1001,8 +1013,8 @@ void handlePlayerInput(float deltaTime) {
             g_playerPosZ = newZ;
         }
 
-        float angleRad = std::atan2(moveVector.z, moveVector.x);
-        g_playerAngleY = glm::degrees(angleRad) - 90.0f;
+        float ang = std::atan2(moveDir.x, moveDir.z);
+        g_playerAngleY = glm::degrees(ang);
 
     }
 
@@ -1278,6 +1290,19 @@ void specialKeyUp(int key, int x, int y) {
     }
 }
 
+void mouseMotion(int x, int y) {
+    (void)y;
+    if (g_lastMouseX < 0) {
+        g_lastMouseX = static_cast<float>(x);
+        return;
+    }
+
+    float dx = static_cast<float>(x) - g_lastMouseX;
+    g_lastMouseX = static_cast<float>(x);
+
+    g_cameraYaw += dx * g_mouseSensitivity;
+}
+
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
@@ -1293,6 +1318,7 @@ int main(int argc, char** argv) {
     glutKeyboardUpFunc(keyboardUp);
     glutSpecialFunc(specialKey);
     glutSpecialUpFunc(specialKeyUp);
+    glutPassiveMotionFunc(mouseMotion);
     glutTimerFunc(16, update, 0);
 
     init();
