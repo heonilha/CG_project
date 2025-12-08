@@ -207,11 +207,15 @@ void addMazeLoops(float loopProbability)
 }
 
 void initCubes() {
-    g_maze.resize(g_gridHeight, std::vector<CellType>(g_gridWidth));
-    g_cubeCurrentHeight.resize(g_gridHeight, std::vector<float>(g_gridWidth));
-    g_cubeCurrentScale.resize(g_gridHeight, std::vector<float>(g_gridWidth));
-    g_pellets.resize(g_gridHeight, std::vector<bool>(g_gridWidth, false));
-    g_slowItems.resize(g_gridHeight, std::vector<bool>(g_gridWidth, false));
+    // `resize` would keep the width of existing rows, so when the stage size grows
+    // (e.g., moving from 11x11 to 25x25) previously allocated rows remain too short
+    // and later indexing with the new width crashes. `assign` rebuilds each row with
+    // the correct column count for the current stage.
+    g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
+    g_cubeCurrentHeight.assign(g_gridHeight, std::vector<float>(g_gridWidth, 0.0f));
+    g_cubeCurrentScale.assign(g_gridHeight, std::vector<float>(g_gridWidth, 0.0f));
+    g_pellets.assign(g_gridHeight, std::vector<bool>(g_gridWidth, false));
+    g_slowItems.assign(g_gridHeight, std::vector<bool>(g_gridWidth, false));
     g_randomEngine.seed(static_cast<unsigned int>(std::time(0)));
 }
 
