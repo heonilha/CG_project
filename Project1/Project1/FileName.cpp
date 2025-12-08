@@ -15,11 +15,12 @@
 #include <numeric>
 #include <algorithm>
 #include <fstream>
+#include <limits>
 
 int g_windowWidth = 1024;
 int g_windowHeight = 768;
-int g_gridWidth = 21;
-int g_gridHeight = 21;
+int g_gridWidth = 11;
+int g_gridHeight = 11;
 const float CUBE_SIZE = 0.8f;
 const float GRID_SPACING = 0.2f;
 
@@ -39,7 +40,7 @@ int g_mazeEndX = 0;
 const float PLAYER_WIDTH = 0.3f;
 const float PLAYER_HEIGHT = 0.5f;
 const float PLAYER_DEPTH = 0.3f;
-const float PLAYER_MOVE_SPEED = 2.0f;
+const float PLAYER_MOVE_SPEED = 4.0f;
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
 const float GRID_BASE_SCALE = 1.0f;
@@ -61,7 +62,7 @@ std::vector<Ghost> g_ghosts;
 const float GHOST_WIDTH = 0.3f;
 const float GHOST_HEIGHT = 0.5f;
 const float GHOST_DEPTH = 0.3f;
-const float GHOST_MOVE_SPEED = 1.5f;  // 플레이어보다 약간 느리거나 비슷한 수준
+const float GHOST_MOVE_SPEED = 2.0f;  // 플레이어보다 느리게 이동
 
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
@@ -661,6 +662,117 @@ void handlePlayerInput(float deltaTime) {
     }
 }
 
+void updateGhosts(float deltaTime) {
+    const float turnThreshold = 0.05f;
+
+    auto isInside = [](int x, int z) {
+        return x >= 0 && x < g_gridWidth && z >= 0 && z < g_gridHeight;
+    };
+
+    auto findNearestPath = [&](int gridX, int gridZ) {
+        int maxRadius = std::max(g_gridWidth, g_gridHeight);
+        for (int radius = 0; radius <= maxRadius; ++radius) {
+            for (int dz = -radius; dz <= radius; ++dz) {
+                for (int dx = -radius; dx <= radius; ++dx) {
+                    int nx = gridX + dx;
+                    int nz = gridZ + dz;
+                    if (!isInside(nx, nz)) continue;
+                    if (g_maze[nz][nx] == PATH) {
+                        return glm::ivec2(nx, nz);
+                    }
+                }
+            }
+        }
+        return glm::ivec2(gridX, gridZ);
+    };
+
+    for (Ghost& ghost : g_ghosts) {
+        glm::ivec2 grid = getGridCoord(ghost.x, ghost.z);
+        if (!isInside(grid.x, grid.y) || g_maze[grid.y][grid.x] == WALL) {
+            glm::ivec2 nearest = findNearestPath(grid.x, grid.y);
+            glm::vec3 nearestPos = getWorldPos(nearest.x, nearest.y);
+            ghost.x = nearestPos.x;
+            ghost.z = nearestPos.z;
+            grid = nearest;
+        }
+
+        glm::vec3 cellCenter = getWorldPos(grid.x, grid.y);
+        glm::vec2 ghostPos2D(ghost.x, ghost.z);
+        glm::vec2 playerPos2D(g_playerPosX, g_playerPosZ);
+        bool canTurn = glm::length(ghostPos2D - glm::vec2(cellCenter.x, cellCenter.z)) < turnThreshold;
+
+        if (canTurn) {
+            struct Candidate {
+                int dx;
+                int dz;
+                bool isReverse;
+                float distanceToPlayer;
+            };
+
+            std::vector<Candidate> candidates;
+            const int dirX[4] = { 1, -1, 0, 0 };
+            const int dirZ[4] = { 0, 0, 1, -1 };
+            for (int i = 0; i < 4; ++i) {
+                int nx = grid.x + dirX[i];
+                int nz = grid.y + dirZ[i];
+                if (!isInside(nx, nz) || g_maze[nz][nx] != PATH) continue;
+
+                glm::vec3 nextCenter = getWorldPos(nx, nz);
+                float distanceToPlayer = glm::length(glm::vec2(nextCenter.x, nextCenter.z) - playerPos2D);
+                bool isReverse = (dirX[i] == -ghost.dirX && dirZ[i] == -ghost.dirZ);
+
+                candidates.push_back({ dirX[i], dirZ[i], isReverse, distanceToPlayer });
+            }
+
+            if (!candidates.empty()) {
+                std::vector<Candidate> bestCandidates;
+
+                auto evaluateCandidates = [&](bool allowReverse) {
+                    float localBest = std::numeric_limits<float>::max();
+                    std::vector<Candidate> localCandidates;
+                    for (const Candidate& c : candidates) {
+                        if (!allowReverse && c.isReverse) continue;
+                        if (c.distanceToPlayer < localBest - 1e-4f) {
+                            localBest = c.distanceToPlayer;
+                            localCandidates.clear();
+                            localCandidates.push_back(c);
+                        }
+                        else if (std::abs(c.distanceToPlayer - localBest) < 1e-4f) {
+                            localCandidates.push_back(c);
+                        }
+                    }
+                    return std::make_pair(localBest, localCandidates);
+                };
+
+                auto nonReverseResult = evaluateCandidates(false);
+                if (!nonReverseResult.second.empty()) {
+                    bestCandidates = nonReverseResult.second;
+                }
+                else {
+                    auto anyResult = evaluateCandidates(true);
+                    bestCandidates = anyResult.second;
+                }
+
+                if (!bestCandidates.empty()) {
+                    std::uniform_int_distribution<size_t> dist(0, bestCandidates.size() - 1);
+                    const Candidate& chosen = bestCandidates[dist(g_randomEngine)];
+                    ghost.dirX = chosen.dx;
+                    ghost.dirZ = chosen.dz;
+                }
+            }
+        }
+
+        float moveSpeed = ghost.speed > 0.0f ? ghost.speed : GHOST_MOVE_SPEED;
+        ghost.x += ghost.dirX * moveSpeed * deltaTime;
+        ghost.z += ghost.dirZ * moveSpeed * deltaTime;
+
+        if (ghost.dirX != 0 || ghost.dirZ != 0) {
+            float angleRad = std::atan2(static_cast<float>(ghost.dirX), static_cast<float>(ghost.dirZ));
+            ghost.angleY = glm::degrees(angleRad);
+        }
+    }
+}
+
 void update(int value) {
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
     float deltaTime = (currentTime - g_lastTime) / 1000.0f;
@@ -669,6 +781,7 @@ void update(int value) {
 
     if (g_gameState == GameState::PLAYING) {
         handlePlayerInput(deltaTime);
+        updateGhosts(deltaTime);
     }
 
     glutPostRedisplay();
