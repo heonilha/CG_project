@@ -1237,6 +1237,19 @@ void update(int value) {
     if (deltaTime < 0.001f) deltaTime = 0.001f;
     g_lastTime = currentTime;
 
+    auto animatePacmanMouth = [&](float dt) {
+        g_pacmanMouthAngle += g_pacmanMouthDir * PACMAN_MOUTH_SPEED * dt;
+
+        if (g_pacmanMouthAngle > PACMAN_MOUTH_MAX) {
+            g_pacmanMouthAngle = PACMAN_MOUTH_MAX;
+            g_pacmanMouthDir = -1.0f;
+        }
+        else if (g_pacmanMouthAngle < 0.0f) {
+            g_pacmanMouthAngle = 0.0f;
+            g_pacmanMouthDir = 1.0f;
+        }
+    };
+
     if (g_ghostSlowActive) {
         g_ghostSlowTimer -= deltaTime;
         if (g_ghostSlowTimer <= 0.0f) {
@@ -1249,18 +1262,10 @@ void update(int value) {
     if (g_gameState == GameState::PLAYING) {
         handlePlayerInput(deltaTime);
         updateGhosts(deltaTime);
-
-        // 팩맨 입 애니메이션
-        g_pacmanMouthAngle += g_pacmanMouthDir * PACMAN_MOUTH_SPEED * deltaTime;
-        if (g_pacmanMouthAngle > PACMAN_MOUTH_MAX) {
-            g_pacmanMouthAngle = PACMAN_MOUTH_MAX;
-            g_pacmanMouthDir = -1.0f;
-        }
-        else if (g_pacmanMouthAngle < 0.0f) {
-            g_pacmanMouthAngle = 0.0f;
-            g_pacmanMouthDir = 1.0f;
-        }
     }
+
+    // 팩맨 입 애니메이션: 게임 진행 여부와 관계없이 계속 반복
+    animatePacmanMouth(deltaTime);
 
     glutPostRedisplay();
     glutTimerFunc(16, update, 0);
