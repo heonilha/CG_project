@@ -178,6 +178,45 @@ void generateMaze(int x, int z) {
     }
 }
 
+void addMazeLoops(float loopProbability)
+{
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+    for (int z = 1; z < g_gridHeight - 1; ++z) {
+        for (int x = 1; x < g_gridWidth - 1; ++x) {
+            if (g_maze[z][x] != WALL) continue;
+
+            bool horiz = (g_maze[z][x - 1] == PATH && g_maze[z][x + 1] == PATH);
+            bool vert  = (g_maze[z - 1][x] == PATH && g_maze[z + 1][x] == PATH);
+
+            if ((horiz || vert) && dist(g_randomEngine) < loopProbability) {
+                g_maze[z][x] = PATH;
+            }
+        }
+    }
+}
+
+void thinWideCorridors(float fillProbability)
+{
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+    for (int z = 1; z < g_gridHeight - 1; ++z) {
+        for (int x = 1; x < g_gridWidth - 1; ++x) {
+            bool squareOpen = g_maze[z][x] == PATH
+                && g_maze[z][x + 1] == PATH
+                && g_maze[z + 1][x] == PATH
+                && g_maze[z + 1][x + 1] == PATH;
+
+            if (!squareOpen || dist(g_randomEngine) >= fillProbability) continue;
+
+            bool fillVertical = ((x + z) % 2 == 0);
+            int targetX = fillVertical ? x : x + 1;
+            int targetZ = fillVertical ? z + 1 : z;
+            g_maze[targetZ][targetX] = WALL;
+        }
+    }
+}
+
 void initCubes() {
     g_maze.resize(g_gridHeight, std::vector<CellType>(g_gridWidth));
     g_cubeCurrentHeight.resize(g_gridHeight, std::vector<float>(g_gridWidth));
@@ -209,6 +248,9 @@ void reset() {
     g_maze[0][g_mazeStartX] = PATH;
     g_maze[1][g_mazeStartX] = PATH;
     g_maze[g_gridHeight - 1][g_mazeEndX] = PATH;
+
+    addMazeLoops(0.35f);
+    thinWideCorridors(1.0f);
 
     glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
     g_playerPosX = playerStartPos.x;
