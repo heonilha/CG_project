@@ -49,7 +49,7 @@ const float PLAYER_MOVE_SPEED = 4.0f;
 float g_pacmanMouthAngle = 0.0f;          // 현재 입 각도(도)
 float g_pacmanMouthDir = 1.0f;             // 1 = 열리는 중, -1 = 닫히는 중
 
-const float PACMAN_MOUTH_MAX = 45.0f;      // 최대 입 벌림 각도
+const float PACMAN_MOUTH_MAX = 70.0f;      // 최대 입 벌림 각도 (더 크게 벌리기)
 const float PACMAN_MOUTH_SPEED = 120.0f;   // 1초에 120도 정도 회전
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
@@ -636,10 +636,11 @@ void drawHemisphere(float clipSign) {
 }
 
 void drawPacman(const glm::vec3& worldPos) {
-    // 팩맨 전체 스케일 (현재 PLAYER_WIDTH 등을 참고해서 맞춰준다)
-    float radiusX = PLAYER_WIDTH;
-    float radiusY = PLAYER_HEIGHT;
-    float radiusZ = PLAYER_DEPTH;
+    // 팩맨 전체 스케일 (반구가 정확한 구 형태가 되도록 동일 반지름 사용)
+    float radius = PLAYER_HEIGHT; // 높이와 동일한 반지름
+    float radiusX = radius;
+    float radiusY = radius;
+    float radiusZ = radius;
 
     // 공통 회전 (플레이어 방향)
     glm::mat4 baseRot = glm::rotate(glm::mat4(1.0f),
