@@ -681,6 +681,46 @@ void drawPacman(const glm::vec3& worldPos) {
     }
 }
 
+void drawGhost(const Ghost& ghost) {
+    glm::ivec2 gGrid = getGridCoord(ghost.x, ghost.z);
+    float gTileY = 0.0f;
+    float gTileScale = FLOOR_SCALE;
+    if (gGrid.y >= 0 && gGrid.y < g_gridHeight &&
+        gGrid.x >= 0 && gGrid.x < g_gridWidth) {
+        gTileY = g_cubeCurrentHeight[gGrid.y][gGrid.x];
+        gTileScale = g_cubeCurrentScale[gGrid.y][gGrid.x];
+    }
+
+    float baseY = gTileY + (gTileScale * CUBE_SIZE * 0.5f);
+
+    float bodyHeight = GHOST_HEIGHT * 0.7f;
+    float headRadius = bodyHeight;
+
+    // 1) 몸통(원기둥)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(ghost.x, baseY + bodyHeight * 0.5f, ghost.z));
+        model = glm::rotate(model, glm::radians(ghost.angleY), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(GHOST_WIDTH, bodyHeight, GHOST_DEPTH));
+
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform3f(g_colorLoc, 0.6f, 0.6f, 0.6f);  // 회색 유령
+        drawCylinder();
+    }
+
+    // 2) 머리(구)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(ghost.x, baseY + bodyHeight + headRadius, ghost.z));
+        model = glm::rotate(model, glm::radians(ghost.angleY), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(headRadius, headRadius, headRadius));
+
+        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform3f(g_colorLoc, 0.6f, 0.6f, 0.6f);
+        drawSphere();
+    }
+}
+
 
 void drawGrid(glm::mat4 view, glm::mat4 projection) {
     glUseProgram(g_shaderProgram);
@@ -720,7 +760,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
                     glUniform3f(g_colorLoc, 0.4f, 0.4f, 0.9f);   // 벽 파란 계열
                 }
                 else {
-                    glUniform3f(g_colorLoc, 0.1f, 0.1f, 0.1f);   // 바닥 어두운 회색
+                    glUniform3f(g_colorLoc, 0.0f, 0.0f, 0.0f);   // 바닥 검정색
                 }
             }
 
@@ -804,28 +844,7 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
     drawPacman(playerWorldPos);
 
     for (const Ghost& ghost : g_ghosts) {
-        glm::ivec2 gGrid = getGridCoord(ghost.x, ghost.z);
-        float gTileY = 0.0f;
-        float gTileScale = FLOOR_SCALE;
-        if (gGrid.y >= 0 && gGrid.y < g_gridHeight &&
-            gGrid.x >= 0 && gGrid.x < g_gridWidth) {
-            gTileY = g_cubeCurrentHeight[gGrid.y][gGrid.x];
-            gTileScale = g_cubeCurrentScale[gGrid.y][gGrid.x];
-        }
-
-        float ghostY = gTileY + (gTileScale * CUBE_SIZE * 0.5f) + (GHOST_HEIGHT / 2.0f);
-        glm::vec3 ghostWorldPos(ghost.x, ghostY, ghost.z);
-
-        glm::mat4 gModel = glm::mat4(1.0f);
-        gModel = glm::translate(gModel, ghostWorldPos);
-        gModel = glm::rotate(gModel, glm::radians(ghost.angleY), glm::vec3(0.0f, 1.0f, 0.0f));
-        gModel = glm::scale(gModel, glm::vec3(GHOST_WIDTH, GHOST_HEIGHT, GHOST_DEPTH));
-
-        glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(gModel));
-
-        glUniform3f(g_colorLoc, 1.0f, 0.2f, 0.2f);
-        glBindVertexArray(g_cubeVAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
+        drawGhost(ghost);
     }
 }
 
