@@ -26,6 +26,11 @@ const float GRID_SPACING = 0.2f;
 
 GLuint g_shaderProgram = 0;
 GLuint g_cubeVAO = 0, g_cubeVBO = 0, g_cubeEBO = 0;
+GLuint g_sphereVAO = 0, g_sphereVBO = 0, g_sphereEBO = 0;
+GLsizei g_sphereIndexCount = 0;
+
+GLuint g_cylinderVAO = 0, g_cylinderVBO = 0, g_cylinderEBO = 0;
+GLsizei g_cylinderIndexCount = 0;
 GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1;
 
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
@@ -383,6 +388,153 @@ void goToGameClear() {
     }
 }
 
+void initSphereMesh(int sectorCount, int stackCount) {
+    const float radius = 0.5f;
+    const float PI = 3.14159265358979323846f;
+
+    std::vector<GLfloat> vertices;
+    std::vector<GLuint> indices;
+
+    for (int i = 0; i <= stackCount; ++i) {
+        float stackAngle = PI / 2.0f - i * (PI / stackCount);
+        float xy = radius * cosf(stackAngle);
+        float y = radius * sinf(stackAngle);
+
+        for (int j = 0; j <= sectorCount; ++j) {
+            float sectorAngle = j * (2 * PI / sectorCount);
+            float x = xy * cosf(sectorAngle);
+            float z = xy * sinf(sectorAngle);
+            vertices.push_back(x);
+            vertices.push_back(y);
+            vertices.push_back(z);
+        }
+    }
+
+    for (int i = 0; i < stackCount; ++i) {
+        int k1 = i * (sectorCount + 1);
+        int k2 = k1 + sectorCount + 1;
+
+        for (int j = 0; j < sectorCount; ++j) {
+            if (i != 0) {
+                indices.push_back(k1 + j);
+                indices.push_back(k2 + j);
+                indices.push_back(k1 + j + 1);
+            }
+            if (i != (stackCount - 1)) {
+                indices.push_back(k1 + j + 1);
+                indices.push_back(k2 + j);
+                indices.push_back(k2 + j + 1);
+            }
+        }
+    }
+
+    g_sphereIndexCount = static_cast<GLsizei>(indices.size());
+
+    glGenVertexArrays(1, &g_sphereVAO);
+    glGenBuffers(1, &g_sphereVBO);
+    glGenBuffers(1, &g_sphereEBO);
+
+    glBindVertexArray(g_sphereVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, g_sphereVBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_sphereEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void initCylinderMesh(int sectorCount) {
+    const float radius = 0.5f;
+    const float height = 1.0f;
+    const float halfHeight = height / 2.0f;
+    const float PI = 3.14159265358979323846f;
+
+    std::vector<GLfloat> vertices;
+    std::vector<GLuint> indices;
+
+    vertices.push_back(0.0f); vertices.push_back(halfHeight); vertices.push_back(0.0f);   // top center
+    vertices.push_back(0.0f); vertices.push_back(-halfHeight); vertices.push_back(0.0f);  // bottom center
+
+    float sectorStep = 2 * PI / sectorCount;
+    for (int i = 0; i <= sectorCount; ++i) {
+        float angle = i * sectorStep;
+        float x = radius * cosf(angle);
+        float z = radius * sinf(angle);
+        vertices.push_back(x);
+        vertices.push_back(halfHeight);
+        vertices.push_back(z);
+    }
+
+    for (int i = 0; i <= sectorCount; ++i) {
+        float angle = i * sectorStep;
+        float x = radius * cosf(angle);
+        float z = radius * sinf(angle);
+        vertices.push_back(x);
+        vertices.push_back(-halfHeight);
+        vertices.push_back(z);
+    }
+
+    GLuint topCenter = 0;
+    GLuint bottomCenter = 1;
+    GLuint topStart = 2;
+    GLuint bottomStart = topStart + sectorCount + 1;
+
+    for (int i = 0; i < sectorCount; ++i) {
+        indices.push_back(topCenter);
+        indices.push_back(topStart + i);
+        indices.push_back(topStart + i + 1);
+
+        indices.push_back(bottomCenter);
+        indices.push_back(bottomStart + i + 1);
+        indices.push_back(bottomStart + i);
+
+        GLuint k1 = topStart + i;
+        GLuint k2 = bottomStart + i;
+
+        indices.push_back(k1);
+        indices.push_back(k2);
+        indices.push_back(k1 + 1);
+
+        indices.push_back(k1 + 1);
+        indices.push_back(k2);
+        indices.push_back(k2 + 1);
+    }
+
+    g_cylinderIndexCount = static_cast<GLsizei>(indices.size());
+
+    glGenVertexArrays(1, &g_cylinderVAO);
+    glGenBuffers(1, &g_cylinderVBO);
+    glGenBuffers(1, &g_cylinderEBO);
+
+    glBindVertexArray(g_cylinderVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, g_cylinderVBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_cylinderEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void drawSphere()
+{
+    glBindVertexArray(g_sphereVAO);
+    glDrawElements(GL_TRIANGLES, g_sphereIndexCount, GL_UNSIGNED_INT, (void*)0);
+}
+
+void drawCylinder()
+{
+    glBindVertexArray(g_cylinderVAO);
+    glDrawElements(GL_TRIANGLES, g_cylinderIndexCount, GL_UNSIGNED_INT, (void*)0);
+}
+
 void init() {
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {}
@@ -415,6 +567,10 @@ void init() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0); glBindVertexArray(0);
+
+    initSphereMesh(24, 16);
+    initCylinderMesh(24);
+
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     g_lastTime = glutGet(GLUT_ELAPSED_TIME);
