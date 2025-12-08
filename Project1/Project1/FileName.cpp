@@ -1,4 +1,5 @@
 #include <GL/glew.h>
+#include <GL/glu.h>
 #include <gl/freeglut.h>
 #include <gl/glm/glm.hpp>
 #include <gl/glm/ext.hpp>
@@ -258,6 +259,37 @@ void init() {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     g_lastTime = glutGet(GLUT_ELAPSED_TIME);
     reset();
+}
+
+void renderText(float x, float y, const std::string& text, void* font = GLUT_BITMAP_HELVETICA_18)
+{
+    // 셰이더 대신 고정 파이프라인으로 텍스트를 그리기 위해
+    // 현재 사용 중인 셰이더를 잠깐 끄고 깊이 테스트를 비활성화한다.
+    glUseProgram(0);
+    glDisable(GL_DEPTH_TEST);
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, g_windowWidth, 0, g_windowHeight);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glColor3f(1.0f, 1.0f, 1.0f);  // 흰색 텍스트
+
+    glRasterPos2f(x, y);
+    for (char c : text) {
+        glutBitmapCharacter(font, c);
+    }
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+
+    glEnable(GL_DEPTH_TEST);
 }
 
 void drawCube() {
