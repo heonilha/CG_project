@@ -50,6 +50,7 @@ bool g_isMinimapView = false;
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
 std::vector<std::vector<float>> g_cubeCurrentScale;
+std::vector<std::vector<bool>> g_pellets;
 
 enum CellType { WALL, PATH };
 std::vector<std::vector<CellType>> g_maze;
@@ -162,6 +163,7 @@ void initCubes() {
     g_maze.resize(g_gridHeight, std::vector<CellType>(g_gridWidth));
     g_cubeCurrentHeight.resize(g_gridHeight, std::vector<float>(g_gridWidth));
     g_cubeCurrentScale.resize(g_gridHeight, std::vector<float>(g_gridWidth));
+    g_pellets.resize(g_gridHeight, std::vector<bool>(g_gridWidth, false));
     g_randomEngine.seed(static_cast<unsigned int>(std::time(0)));
 }
 
@@ -177,6 +179,7 @@ void reset() {
     initCubes();
 
     g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
+    g_pellets.assign(g_gridHeight, std::vector<bool>(g_gridWidth, false));
     int range = (g_gridWidth - 3) / 2;
     if (range < 0) range = 0;
     std::uniform_int_distribution<int> xDist(0, range);
@@ -198,6 +201,7 @@ void reset() {
             }
             else {
                 g_cubeCurrentScale[i][j] = FLOOR_SCALE;
+                g_pellets[i][j] = true;
             }
             g_cubeCurrentHeight[i][j] = (g_cubeCurrentScale[i][j] * CUBE_SIZE) / 2.0f;
         }
@@ -345,6 +349,21 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
             }
 
             drawCube();
+
+            // 펠릿 그리기 (메인 화면에서만)
+            if (!g_isMinimapView && g_maze[i][j] == PATH && g_pellets[i][j]) {
+                glm::mat4 pelletModel = glm::mat4(1.0f);
+
+                float pelletY = g_cubeCurrentHeight[i][j] + (g_cubeCurrentScale[i][j] * CUBE_SIZE * 0.5f) + 0.05f;
+                pelletModel = glm::translate(pelletModel, glm::vec3(x, pelletY, z));
+
+                float pelletScale = 0.2f;
+                pelletModel = glm::scale(pelletModel, glm::vec3(pelletScale, pelletScale, pelletScale));
+
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(pelletModel));
+                glUniform3f(g_colorLoc, 1.0f, 0.9f, 0.2f);
+                drawCube();
+            }
         }
     }
 
