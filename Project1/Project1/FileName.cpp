@@ -31,7 +31,7 @@ GLsizei g_sphereIndexCount = 0;
 
 GLuint g_cylinderVAO = 0, g_cylinderVBO = 0, g_cylinderEBO = 0;
 GLsizei g_cylinderIndexCount = 0;
-GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1;
+GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1;
 
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -559,6 +559,7 @@ void init() {
     g_viewLoc = glGetUniformLocation(g_shaderProgram, "view");
     g_projLoc = glGetUniformLocation(g_shaderProgram, "projection");
     g_colorLoc = glGetUniformLocation(g_shaderProgram, "objectColor");
+    g_clipSignLoc = glGetUniformLocation(g_shaderProgram, "clipSign");
 
     float s = 0.5f;
     GLfloat vertices[] = { -s, -s,  s,  s, -s,  s,  s,  s,  s, -s,  s,  s, -s, -s, -s,  s, -s, -s,  s,  s, -s, -s,  s, -s };
@@ -622,16 +623,16 @@ void drawCube() {
     }
 }
 
-void drawHemisphere() {
-    // y >= 0 영역만 남겨 위쪽으로 볼록한 반구 형태를 만든다.
-    GLdouble clipPlane[] = { 0.0, -1.0, 0.0, 0.0 };
-    glEnable(GL_CLIP_PLANE0);
-    glClipPlane(GL_CLIP_PLANE0, clipPlane);
+void drawHemisphere(float clipSign) {
+    // clipSign = +1 : y >= 0만 남김 (위쪽 반구)
+    // clipSign = -1 : y <= 0만 남김 (아래쪽 반구)
+    glEnable(GL_CLIP_DISTANCE0);
+    glUniform1f(g_clipSignLoc, clipSign);
 
     glBindVertexArray(g_sphereVAO);
     glDrawElements(GL_TRIANGLES, g_sphereIndexCount, GL_UNSIGNED_INT, (void*)0);
 
-    glDisable(GL_CLIP_PLANE0);
+    glDisable(GL_CLIP_DISTANCE0);
 }
 
 void drawPacman(const glm::vec3& worldPos) {
@@ -660,7 +661,7 @@ void drawPacman(const glm::vec3& worldPos) {
 
         glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);  // 노란 팩맨
-        drawHemisphere();
+        drawHemisphere(+1.0f);
     }
 
     // 아래 턱(반구)
@@ -677,7 +678,7 @@ void drawPacman(const glm::vec3& worldPos) {
 
         glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3f(g_colorLoc, 1.0f, 1.0f, 0.0f);
-        drawHemisphere();
+        drawHemisphere(-1.0f);
     }
 }
 
