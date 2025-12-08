@@ -40,7 +40,7 @@ int g_mazeEndX = 0;
 const float PLAYER_WIDTH = 0.3f;
 const float PLAYER_HEIGHT = 0.5f;
 const float PLAYER_DEPTH = 0.3f;
-const float PLAYER_MOVE_SPEED = 2.0f;
+const float PLAYER_MOVE_SPEED = 4.0f;
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
 const float GRID_BASE_SCALE = 1.0f;
@@ -62,7 +62,7 @@ std::vector<Ghost> g_ghosts;
 const float GHOST_WIDTH = 0.3f;
 const float GHOST_HEIGHT = 0.5f;
 const float GHOST_DEPTH = 0.3f;
-const float GHOST_MOVE_SPEED = 4.0f;  // 플레이어보다 약간 느리거나 비슷한 수준
+const float GHOST_MOVE_SPEED = 2.0f;  // 플레이어보다 느리게 이동
 
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
