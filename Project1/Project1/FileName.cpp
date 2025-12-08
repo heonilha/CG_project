@@ -355,6 +355,21 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
             }
 
             drawCube();
+
+            // 펠릿 그리기 (메인 화면에서만)
+            if (!g_isMinimapView && g_maze[i][j] == PATH && g_pellets[i][j]) {
+                glm::mat4 pelletModel = glm::mat4(1.0f);
+
+                float pelletY = g_cubeCurrentHeight[i][j] + (g_cubeCurrentScale[i][j] * CUBE_SIZE * 0.5f) + 0.05f;
+                pelletModel = glm::translate(pelletModel, glm::vec3(x, pelletY, z));
+
+                float pelletScale = 0.2f;
+                pelletModel = glm::scale(pelletModel, glm::vec3(pelletScale, pelletScale, pelletScale));
+
+                glUniformMatrix4fv(g_modelLoc, 1, GL_FALSE, glm::value_ptr(pelletModel));
+                glUniform3f(g_colorLoc, 1.0f, 0.9f, 0.2f);
+                drawCube();
+            }
         }
     }
 
