@@ -52,6 +52,8 @@ const float PLAYER_TURN_SPEED = 100.0f;
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
 const float GRID_BASE_SCALE = 1.0f;
+const float WALL_SCALE = 2.0f;
+const float FLOOR_SCALE = 0.05f;
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
 std::vector<std::vector<float>> g_cubeCurrentScale;
@@ -192,8 +194,13 @@ void reset() {
 
     for (int i = 0; i < g_gridHeight; ++i) {
         for (int j = 0; j < g_gridWidth; ++j) {
-            g_cubeCurrentScale[i][j] = GRID_BASE_SCALE;
-            g_cubeCurrentHeight[i][j] = (GRID_BASE_SCALE * CUBE_SIZE) / 2.0f;
+            if (g_maze[i][j] == WALL) {
+                g_cubeCurrentScale[i][j] = WALL_SCALE;
+            }
+            else {
+                g_cubeCurrentScale[i][j] = FLOOR_SCALE;
+            }
+            g_cubeCurrentHeight[i][j] = (g_cubeCurrentScale[i][j] * CUBE_SIZE) / 2.0f;
         }
     }
 }
