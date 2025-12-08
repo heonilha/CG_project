@@ -710,6 +710,11 @@ void display() {
     {
         std::string hud = "SCORE: " + std::to_string(g_score) + "   LIVES: " + std::to_string(g_lives);
         renderText(20.0f, g_windowHeight - 30.0f, hud);
+
+        if (g_ghostSlowActive) {
+            std::string hud2 = "SLOW TIME: " + std::to_string((int)std::ceil(g_ghostSlowTimer));
+            renderText(20.0f, g_windowHeight - 60.0f, hud2);
+        }
     }
     break;
     case GameState::GAME_CLEAR:
@@ -755,29 +760,6 @@ void handlePlayerInput(float deltaTime) {
 
         float angleRad = std::atan2(moveVector.x, moveVector.z);
         g_playerAngleY = glm::degrees(angleRad);
-
-        glm::ivec2 playerGrid = getGridCoord(g_playerPosX, g_playerPosZ);
-        if (playerGrid.y >= 0 && playerGrid.y < g_gridHeight &&
-            playerGrid.x >= 0 && playerGrid.x < g_gridWidth) {
-
-            if (g_maze[playerGrid.y][playerGrid.x] == PATH && g_pellets[playerGrid.y][playerGrid.x]) {
-                g_pellets[playerGrid.y][playerGrid.x] = false;
-
-                g_remainingPellets--;
-                g_score += 10;
-
-                if (g_remainingPellets <= 0) {
-                    goToGameClear();
-                }
-            }
-
-            if (g_maze[playerGrid.y][playerGrid.x] == PATH && g_slowItems[playerGrid.y][playerGrid.x]) {
-                g_slowItems[playerGrid.y][playerGrid.x] = false;
-                g_ghostSlowActive = true;
-                g_ghostSlowTimer = GHOST_SLOW_DURATION;
-                g_ghostSpeedScale = GHOST_SLOW_SCALE;
-            }
-        }
     }
 
     glm::ivec2 playerGrid = getGridCoord(g_playerPosX, g_playerPosZ);
@@ -942,6 +924,7 @@ void update(int value) {
         g_ghostSlowTimer -= deltaTime;
         if (g_ghostSlowTimer <= 0.0f) {
             g_ghostSlowActive = false;
+            g_ghostSlowTimer = 0.0f;
             g_ghostSpeedScale = 1.0f;
         }
     }
