@@ -453,8 +453,8 @@ void initSphereMesh(int sectorCount, int stackCount) {
 }
 
 void initCylinderMesh(int sectorCount) {
-    const float radius = 0.5f;
-    const float height = 1.0f;
+    const float radius = 0.6f;
+    const float height = 2.0f;
     const float halfHeight = height / 2.0f;
     const float PI = 3.14159265358979323846f;
 
@@ -615,9 +615,9 @@ void drawCube() {
     }
     else {
         // 메인 3D 화면용: 윗면/옆면 색 다르게
-        glUniform3f(g_colorLoc, 1.0f, 1.0f, 1.0f); // 윗면
+        glUniform3f(g_colorLoc, 0.0f, 0.0f, 1.0f); // 윗면
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(0));
-        glUniform3f(g_colorLoc, 0.5f, 0.5f, 0.5f); // 나머지
+        glUniform3f(g_colorLoc, 0.0f, 0.0f, 0.0f); // 나머지
         glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, (void*)(6 * sizeof(GLuint)));
     }
 }
