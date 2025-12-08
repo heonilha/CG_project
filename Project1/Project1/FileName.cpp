@@ -110,6 +110,7 @@ int g_lives = 3;
 int g_currentStage = 1;   // 1 = Stage 1, 2 = Stage 2
 const int MAX_STAGE = 2;
 
+
 std::string readShaderSource(const char* filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
@@ -930,6 +931,8 @@ void drawGrid(glm::mat4 view, glm::mat4 projection, const glm::vec3& lightPos) {
 }
 
 void display() {
+    glm::vec3 lightPos = g_cameraPos;
+    glUniform3fv(g_lightPosLoc, 1, glm::value_ptr(lightPos));
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, g_windowWidth, g_windowHeight);
 
