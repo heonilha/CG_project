@@ -50,7 +50,9 @@ bool g_isMinimapView = false;
 
 std::vector<std::vector<float>> g_cubeCurrentHeight;
 std::vector<std::vector<float>> g_cubeCurrentScale;
-std::vector<std::vector<bool>> g_pellets;
+std::vector<std::vector<bool>> g_pellets;      // 해당 칸에 펠릿이 있는지 여부
+int g_totalPellets = 0;                        // 맵 전체 펠릿 수
+int g_remainingPellets = 0;                    // 아직 안 먹은 펠릿 수
 
 enum CellType { WALL, PATH };
 std::vector<std::vector<CellType>> g_maze;
@@ -179,7 +181,8 @@ void reset() {
     initCubes();
 
     g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
-    g_pellets.assign(g_gridHeight, std::vector<bool>(g_gridWidth, false));
+    g_totalPellets = 0;
+    g_remainingPellets = 0;
     int range = (g_gridWidth - 3) / 2;
     if (range < 0) range = 0;
     std::uniform_int_distribution<int> xDist(0, range);
@@ -198,10 +201,13 @@ void reset() {
         for (int j = 0; j < g_gridWidth; ++j) {
             if (g_maze[i][j] == WALL) {
                 g_cubeCurrentScale[i][j] = WALL_SCALE;
+                g_pellets[i][j] = false;
             }
             else {
                 g_cubeCurrentScale[i][j] = FLOOR_SCALE;
                 g_pellets[i][j] = true;
+                g_totalPellets++;
+                g_remainingPellets++;
             }
             g_cubeCurrentHeight[i][j] = (g_cubeCurrentScale[i][j] * CUBE_SIZE) / 2.0f;
         }
