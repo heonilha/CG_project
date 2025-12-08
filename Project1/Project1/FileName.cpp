@@ -26,9 +26,9 @@ GLuint g_shaderProgram = 0;
 GLuint g_cubeVAO = 0, g_cubeVBO = 0, g_cubeEBO = 0;
 GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1;
 
-const glm::vec3 CAMERA_UP = glm::vec3(0.0f, 1.0f, 0.0f);
-const float CAMERA_BACK_DISTANCE = 6.0f;
-const float CAMERA_HEIGHT = 8.0f;
+glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
+glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 float g_playerPosX = 0.0f;
 float g_playerPosZ = 0.0f;
 float g_playerAngleY = 0.0f;
@@ -151,6 +151,9 @@ void initCubes() {
 }
 
 void reset() {
+    g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
+    g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+    g_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     g_playerAngleY = 0.0f;
 
     for (int i = 0; i < 256; i++) g_keyStates[i] = false;
@@ -255,7 +258,15 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
         }
     }
 
-    glm::vec3 playerWorldPos = getPlayerWorldPosition();
+    glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
+    float tileY = 0.0f;
+    float tileScale = 0.0f;
+    if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
+        tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
+        tileScale = g_cubeCurrentScale[gridPos.y][gridPos.x];
+    }
+    float playerDrawY = tileY + (tileScale * CUBE_SIZE / 2.0f) + (PLAYER_HEIGHT / 2.0f);
+    glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, playerDrawY, g_playerPosZ);
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, playerWorldPos);
     model = glm::rotate(model, glm::radians(g_playerAngleY), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -266,35 +277,27 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (void*)(0));
 }
 
-glm::vec3 getPlayerWorldPosition() {
-    glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
-    float tileY = 0.0f;
-    float tileScale = 0.0f;
-    if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
-        tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
-        tileScale = g_cubeCurrentScale[gridPos.y][gridPos.x];
-    }
-    float playerDrawY = tileY + (tileScale * CUBE_SIZE / 2.0f) + (PLAYER_HEIGHT / 2.0f);
-    return glm::vec3(g_playerPosX, playerDrawY, g_playerPosZ);
-}
-
-bool isPathCell(const glm::ivec2& gridPos) {
-    return gridPos.x >= 0 && gridPos.x < g_gridWidth && gridPos.y >= 0 && gridPos.y < g_gridHeight && g_maze[gridPos.y][gridPos.x] == PATH;
-}
-
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, g_windowWidth, g_windowHeight);
-    glm::vec3 playerWorldPos = getPlayerWorldPosition();
+    glm::mat4 view(1.0f);
+
+    glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
+    float tileY = 0.0f;
+    if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
+        tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
+    }
+    glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
     float angleRad = glm::radians(g_playerAngleY);
     glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
-    glm::vec3 camOffset = -forward * CAMERA_BACK_DISTANCE + glm::vec3(0.0f, CAMERA_HEIGHT, 0.0f);
-    glm::vec3 cameraPos = playerWorldPos + camOffset;
-    glm::vec3 cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, CAMERA_UP);
+    glm::vec3 camOffset = -forward * 6.0f + glm::vec3(0.0f, 8.0f, 0.0f);
+    g_cameraPos = playerWorldPos + camOffset;
+    g_cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
+    view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
 
+    glm::mat4 projection(1.0f);
     float aspect = (float)g_windowWidth / g_windowHeight;
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+    projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
 
     drawGrid(view, projection);
 
@@ -324,20 +327,20 @@ void handlePlayerInput(float deltaTime) {
 
     if (g_specialKeyStates[GLUT_KEY_UP] || g_keyStates['w'] || g_keyStates['W'])    moveVector += glm::vec3(0.0f, 0.0f, 1.0f);
     if (g_specialKeyStates[GLUT_KEY_DOWN] || g_keyStates['s'] || g_keyStates['S'])  moveVector -= glm::vec3(0.0f, 0.0f, 1.0f);
-    if (g_specialKeyStates[GLUT_KEY_LEFT] || g_keyStates['a'] || g_keyStates['A'])  moveVector -= glm::vec3(1.0f, 0.0f, 0.0f);
-    if (g_specialKeyStates[GLUT_KEY_RIGHT] || g_keyStates['d'] || g_keyStates['D']) moveVector += glm::vec3(1.0f, 0.0f, 0.0f);
+    if (g_specialKeyStates[GLUT_KEY_LEFT] || g_keyStates['a'] || g_keyStates['A'])  moveVector += glm::vec3(1.0f, 0.0f, 0.0f);
+    if (g_specialKeyStates[GLUT_KEY_RIGHT] || g_keyStates['d'] || g_keyStates['D']) moveVector -= glm::vec3(1.0f, 0.0f, 0.0f);
 
     if (glm::length(moveVector) > 0.0f) {
         moveVector = glm::normalize(moveVector) * PLAYER_MOVE_SPEED * deltaTime;
         float newX = g_playerPosX + moveVector.x;
         float newZ = g_playerPosZ + moveVector.z;
 
-        glm::ivec2 gridPosX = getGridCoord(newX, g_playerPosZ);
-        if (isPathCell(gridPosX)) {
+        glm::ivec2 gridPos = getGridCoord(newX, g_playerPosZ);
+        if (gridPos.x >= 0 && gridPos.x < g_gridWidth && gridPos.y >= 0 && gridPos.y < g_gridHeight && g_maze[gridPos.y][gridPos.x] == PATH) {
             g_playerPosX = newX;
         }
-        glm::ivec2 gridPosZ = getGridCoord(g_playerPosX, newZ);
-        if (isPathCell(gridPosZ)) {
+        gridPos = getGridCoord(g_playerPosX, newZ);
+        if (gridPos.x >= 0 && gridPos.x < g_gridWidth && gridPos.y >= 0 && gridPos.y < g_gridHeight && g_maze[gridPos.y][gridPos.x] == PATH) {
             g_playerPosZ = newZ;
         }
 
