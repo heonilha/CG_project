@@ -31,7 +31,7 @@ GLsizei g_sphereIndexCount = 0;
 
 GLuint g_cylinderVAO = 0, g_cylinderVBO = 0, g_cylinderEBO = 0;
 GLsizei g_cylinderIndexCount = 0;
-GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1;
+GLint g_modelLoc = -1, g_viewLoc = -1, g_projLoc = -1, g_colorLoc = -1, g_clipSignLoc = -1, g_lightPosLoc = -1;
 
 glm::vec3 g_cameraPos = glm::vec3(0.0f, 10.0f, 15.0f);
 glm::vec3 g_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -564,6 +564,7 @@ void init() {
     g_projLoc = glGetUniformLocation(g_shaderProgram, "projection");
     g_colorLoc = glGetUniformLocation(g_shaderProgram, "objectColor");
     g_clipSignLoc = glGetUniformLocation(g_shaderProgram, "clipSign");
+    g_lightPosLoc = glGetUniformLocation(g_shaderProgram, "lightPos");
 
     float s = 0.5f;
     GLfloat vertices[] = { -s, -s,  s,  s, -s,  s,  s,  s,  s, -s,  s,  s, -s, -s, -s,  s, -s, -s,  s,  s, -s, -s,  s, -s };
@@ -732,6 +733,14 @@ void drawGrid(glm::mat4 view, glm::mat4 projection) {
     glUseProgram(g_shaderProgram);
     glUniformMatrix4fv(g_viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(g_projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    if (g_isMinimapView) {
+        // 미니맵은 위쪽 고정 조명
+        glUniform3f(g_lightPosLoc, 0.0f, 30.0f, 0.0f);
+    } else {
+        // 메인 화면: 카메라 위치에서 빛이 나옴
+        glUniform3f(g_lightPosLoc, g_cameraPos.x, g_cameraPos.y, g_cameraPos.z);
+    }
     float totalGridWidth = (g_gridWidth - 1) * (CUBE_SIZE + GRID_SPACING);
     float totalGridHeight = (g_gridHeight - 1) * (CUBE_SIZE + GRID_SPACING);
     float startX = -totalGridWidth / 2.0f;
