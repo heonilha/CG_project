@@ -49,7 +49,7 @@ const float PLAYER_MOVE_SPEED = 4.0f;
 float g_pacmanMouthAngle = 0.0f;          // 현재 입 각도(도)
 float g_pacmanMouthDir = 1.0f;             // 1 = 열리는 중, -1 = 닫히는 중
 
-const float PACMAN_MOUTH_MAX = 70.0f;      // 최대 입 벌림 각도 (더 크게 벌리기)
+const float PACMAN_MOUTH_MAX = 55.0f;      // 최대 입 벌림 각도 (약간 축소)
 const float PACMAN_MOUTH_SPEED = 120.0f;   // 1초에 120도 정도 회전
 bool g_keyStates[256];
 bool g_specialKeyStates[128];
@@ -653,10 +653,10 @@ void drawPacman(const glm::vec3& worldPos) {
         model = glm::translate(model, worldPos);
 
         // 팩맨 전체 회전 + 입 회전 (위쪽으로 열림)
-        model *= baseRot;
         model = glm::rotate(model,
             glm::radians(+g_pacmanMouthAngle),
             glm::vec3(1.0f, 0.0f, 0.0f)); // X축 기준으로 회전
+        model *= baseRot;
 
         model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
 
@@ -670,10 +670,10 @@ void drawPacman(const glm::vec3& worldPos) {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, worldPos);
 
-        model *= baseRot;
         model = glm::rotate(model,
             glm::radians(-g_pacmanMouthAngle),
             glm::vec3(1.0f, 0.0f, 0.0f));
+        model *= baseRot;
 
         model = glm::scale(model, glm::vec3(radiusX, radiusY, radiusZ));
 
