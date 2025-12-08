@@ -862,14 +862,23 @@ void display() {
         if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
             tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
         }
+
         glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
 
+        // 플레이어의 바라보는 방향 벡터 (Z+ 기준)
         float angleRad = glm::radians(g_playerAngleY);
         glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
 
-        glm::vec3 camOffset = glm::vec3(0.0f, 8.0f, -6.0f);
-        g_cameraPos = playerWorldPos + camOffset;
-        g_cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
+        // 3인칭 카메라 파라미터
+        const float CAM_DISTANCE = 6.0f;   // 얼마나 뒤로 떨어질지
+        const float CAM_HEIGHT   = 4.0f;   // 얼마나 위에 있을지
+        const float LOOK_HEIGHT  = 1.0f;   // 팩맨의 어느 높이를 볼지
+
+        // 팩맨 뒤쪽으로 CAM_DISTANCE만큼, 위로 CAM_HEIGHT만큼
+        glm::vec3 camOffset = -forward * CAM_DISTANCE + glm::vec3(0.0f, CAM_HEIGHT, 0.0f);
+
+        g_cameraPos    = playerWorldPos + camOffset;
+        g_cameraTarget = playerWorldPos + glm::vec3(0.0f, LOOK_HEIGHT, 0.0f);
 
         glm::mat4 view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
 
