@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <fstream>
 #include <limits>
+#include <queue>
 
 int g_windowWidth = 1024;
 int g_windowHeight = 768;
@@ -156,28 +157,6 @@ glm::ivec2 getGridCoord(float worldX, float worldZ) {
     return glm::ivec2(gridX, gridZ);
 }
 
-void generateMaze(int x, int z) {
-    g_maze[z][x] = PATH;
-
-    int dx[] = { 0, 0, 1, -1 };
-    int dz[] = { 1, -1, 0, 0 };
-    std::vector<int> directions = { 0, 1, 2, 3 };
-    std::shuffle(directions.begin(), directions.end(), g_randomEngine);
-
-    for (int i = 0; i < 4; ++i) {
-        int dir = directions[i];
-        int nx = x + dx[dir] * 2;
-        int nz = z + dz[dir] * 2;
-
-        if (nx > 0 && nx < g_gridWidth - 1 && nz > 0 && nz < g_gridHeight - 1) {
-            if (g_maze[nz][nx] == WALL) {
-                g_maze[z + dz[dir]][x + dx[dir]] = PATH;
-                generateMaze(nx, nz);
-            }
-        }
-    }
-}
-
 void addMazeLoops(float loopProbability)
 {
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
@@ -196,25 +175,99 @@ void addMazeLoops(float loopProbability)
     }
 }
 
-void thinWideCorridors(float fillProbability)
+void addFrontierNeighbors(int x, int z, std::vector<glm::ivec2>& frontier, std::vector<std::vector<bool>>& inFrontier)
 {
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    int dx[] = { 1, -1, 0, 0 };
+    int dz[] = { 0, 0, 1, -1 };
 
-    for (int z = 1; z < g_gridHeight - 1; ++z) {
-        for (int x = 1; x < g_gridWidth - 1; ++x) {
-            bool squareOpen = g_maze[z][x] == PATH
-                && g_maze[z][x + 1] == PATH
-                && g_maze[z + 1][x] == PATH
-                && g_maze[z + 1][x + 1] == PATH;
-
-            if (!squareOpen || dist(g_randomEngine) >= fillProbability) continue;
-
-            bool fillVertical = ((x + z) % 2 == 0);
-            int targetX = fillVertical ? x : x + 1;
-            int targetZ = fillVertical ? z + 1 : z;
-            g_maze[targetZ][targetX] = WALL;
+    for (int i = 0; i < 4; ++i) {
+        int nx = x + dx[i];
+        int nz = z + dz[i];
+        if (nx <= 0 || nx >= g_gridWidth - 1 || nz <= 0 || nz >= g_gridHeight - 1) continue;
+        if (g_maze[nz][nx] == WALL && !inFrontier[nz][nx]) {
+            frontier.push_back(glm::ivec2(nx, nz));
+            inFrontier[nz][nx] = true;
         }
     }
+}
+
+void generateMazePrim(int startX, int startZ)
+{
+    std::vector<std::vector<bool>> inFrontier(g_gridHeight, std::vector<bool>(g_gridWidth, false));
+    std::vector<glm::ivec2> frontier;
+
+    g_maze[startZ][startX] = PATH;
+    addFrontierNeighbors(startX, startZ, frontier, inFrontier);
+
+    while (!frontier.empty()) {
+        std::uniform_int_distribution<int> indexDist(0, static_cast<int>(frontier.size()) - 1);
+        int idx = indexDist(g_randomEngine);
+        glm::ivec2 cell = frontier[idx];
+        frontier[idx] = frontier.back();
+        frontier.pop_back();
+        inFrontier[cell.y][cell.x] = false;
+
+        int dx[] = { 1, -1, 0, 0 };
+        int dz[] = { 0, 0, 1, -1 };
+        int pathNeighbors = 0;
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cell.x + dx[i];
+            int nz = cell.y + dz[i];
+            if (nx <= 0 || nx >= g_gridWidth - 1 || nz <= 0 || nz >= g_gridHeight - 1) continue;
+            if (g_maze[nz][nx] == PATH) {
+                pathNeighbors++;
+            }
+        }
+
+        if (pathNeighbors == 1) {
+            g_maze[cell.y][cell.x] = PATH;
+            addFrontierNeighbors(cell.x, cell.y, frontier, inFrontier);
+        }
+    }
+}
+
+bool isMazeFullyConnectedFromEntrance(int startX)
+{
+    if (g_gridHeight < 2 || startX < 0 || startX >= g_gridWidth) return false;
+    int startZ = 1;
+    if (g_maze[startZ][startX] != PATH) return false;
+
+    int totalPath = 0;
+    for (int z = 0; z < g_gridHeight; ++z) {
+        for (int x = 0; x < g_gridWidth; ++x) {
+            if (g_maze[z][x] == PATH) {
+                totalPath++;
+            }
+        }
+    }
+
+    std::queue<glm::ivec2> q;
+    std::vector<std::vector<bool>> visited(g_gridHeight, std::vector<bool>(g_gridWidth, false));
+    q.push(glm::ivec2(startX, startZ));
+    visited[startZ][startX] = true;
+    int visitedCount = 0;
+
+    int dx[] = { 1, -1, 0, 0 };
+    int dz[] = { 0, 0, 1, -1 };
+
+    while (!q.empty()) {
+        glm::ivec2 cell = q.front();
+        q.pop();
+        visitedCount++;
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cell.x + dx[i];
+            int nz = cell.y + dz[i];
+            if (nx < 0 || nx >= g_gridWidth || nz < 0 || nz >= g_gridHeight) continue;
+            if (visited[nz][nx]) continue;
+            if (g_maze[nz][nx] != PATH) continue;
+            visited[nz][nx] = true;
+            q.push(glm::ivec2(nx, nz));
+        }
+    }
+
+    return visitedCount == totalPath;
 }
 
 void enforceEntranceAndBorders()
@@ -257,24 +310,35 @@ void reset() {
 
     initCubes();
 
-    g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
     g_totalPellets = 0;
     g_remainingPellets = 0;
-    int range = (g_gridWidth - 3) / 2;
-    if (range < 0) range = 0;
-    std::uniform_int_distribution<int> xDist(0, range);
-    g_mazeStartX = xDist(g_randomEngine) * 2 + 1;
-    g_mazeEndX = xDist(g_randomEngine) * 2 + 1;
-    generateMaze(g_mazeEndX, g_gridHeight - 2);
-    g_maze[0][g_mazeStartX] = PATH;
-    g_maze[1][g_mazeStartX] = PATH;
 
-    addMazeLoops(0.35f);
-    thinWideCorridors(1.0f);
-    enforceEntranceAndBorders();
+    std::uniform_int_distribution<int> entranceDist(1, std::max(1, g_gridWidth - 2));
+    bool mazeReady = false;
+    int attempts = 0;
 
-    addMazeLoops(0.35f);
-    thinWideCorridors(1.0f);
+    while (!mazeReady && attempts < 50) {
+        attempts++;
+        g_maze.assign(g_gridHeight, std::vector<CellType>(g_gridWidth, WALL));
+
+        g_mazeStartX = entranceDist(g_randomEngine);
+        g_mazeEndX = entranceDist(g_randomEngine);
+
+        generateMazePrim(g_mazeStartX, 1);
+        addMazeLoops(0.35f);
+        enforceEntranceAndBorders();
+
+        mazeReady = isMazeFullyConnectedFromEntrance(g_mazeStartX);
+    }
+
+    if (!mazeReady) {
+        for (int z = 1; z < g_gridHeight - 1; ++z) {
+            for (int x = 1; x < g_gridWidth - 1; ++x) {
+                g_maze[z][x] = PATH;
+            }
+        }
+        enforceEntranceAndBorders();
+    }
 
     glm::vec3 playerStartPos = getWorldPos(g_mazeStartX, 0);
     g_playerPosX = playerStartPos.x;
