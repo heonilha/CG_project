@@ -936,77 +936,81 @@ void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, g_windowWidth, g_windowHeight);
 
-    glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
-    float tileY = 0.0f;
-    if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
-        tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
+    // TITLE 화면에서는 3D 그리기 자체를 하지 않음
+    if (g_gameState == GameState::PLAYING) {
+
+        glm::ivec2 gridPos = getGridCoord(g_playerPosX, g_playerPosZ);
+        float tileY = 0.0f;
+        if (gridPos.y >= 0 && gridPos.y < g_gridHeight && gridPos.x >= 0 && gridPos.x < g_gridWidth) {
+            tileY = g_cubeCurrentHeight[gridPos.y][gridPos.x];
+        }
+        glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
+
+        float angleRad = glm::radians(g_playerAngleY);
+        glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
+
+        glm::vec3 camOffset = glm::vec3(0.0f, 8.0f, -6.0f);
+        g_cameraPos = playerWorldPos + camOffset;
+        g_cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
+
+        glm::mat4 view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
+
+        float aspect = (float)g_windowWidth / g_windowHeight;
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+
+        // 메인 화면
+        g_isMinimapView = false;
+        drawGrid(view, projection, g_cameraPos);
+        // --- Mini-map (top-right square) ---
+        int padding = 10;
+        int minimapSize = std::min(g_windowWidth, g_windowHeight) / 4; // 정사각형
+
+        int x = g_windowWidth - minimapSize - padding;
+        int y = g_windowHeight - minimapSize - padding;
+
+        // 이 영역만 배경 색으로 칠하기
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(x, y, minimapSize, minimapSize);
+
+        // 미니맵 배경 색 (조금 진한 회색 같은 느낌)
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // 이제 이 영역에만 그리도록 뷰포트 설정
+        glViewport(x, y, minimapSize, minimapSize);
+
+
+        // 메인 화면은 그대로 두고, 미니맵 영역에서는 깊이만 초기화
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        // 미로 전체 범위 계산
+        float totalGridWidth = (g_gridWidth - 1) * (CUBE_SIZE + GRID_SPACING);
+        float totalGridHeight = (g_gridHeight - 1) * (CUBE_SIZE + GRID_SPACING);
+        float halfW = totalGridWidth * 0.5f;
+        float halfH = totalGridHeight * 0.5f;
+
+        // 위에서 직각으로 내려다보는 카메라
+        glm::mat4 minimapView = glm::lookAt(
+            glm::vec3(0.0f, 30.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f) // 위쪽 기준
+        );
+
+        // 전체가 다 들어오도록 orthographic
+        glm::mat4 minimapProj = glm::ortho(
+            -halfW * 1.1f, halfW * 1.1f,
+            -halfH * 1.1f, halfH * 1.1f,
+            0.1f, 100.0f
+        );
+
+        // 미니맵 모드로 그리기
+        g_isMinimapView = true;
+        drawGrid(minimapView, minimapProj, glm::vec3(0.0f, 30.0f, 0.0f));
+        g_isMinimapView = false;
+
+        glDisable(GL_SCISSOR_TEST);
+        glBindVertexArray(0);
     }
-    glm::vec3 playerWorldPos = glm::vec3(g_playerPosX, tileY, g_playerPosZ);
-
-    float angleRad = glm::radians(g_playerAngleY);
-    glm::vec3 forward(sin(angleRad), 0.0f, cos(angleRad));
-
-    glm::vec3 camOffset = glm::vec3(0.0f, 8.0f, -6.0f);
-    g_cameraPos = playerWorldPos + camOffset;
-    g_cameraTarget = playerWorldPos + glm::vec3(0.0f, 1.0f, 0.0f);
-
-    glm::mat4 view = glm::lookAt(g_cameraPos, g_cameraTarget, g_cameraUp);
-
-    float aspect = (float)g_windowWidth / g_windowHeight;
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
-
-    // 메인 화면
-    g_isMinimapView = false;
-    drawGrid(view, projection, g_cameraPos);
-    // --- Mini-map (top-right square) ---
-    int padding = 10;
-    int minimapSize = std::min(g_windowWidth, g_windowHeight) / 4; // 정사각형
-
-    int x = g_windowWidth - minimapSize - padding;
-    int y = g_windowHeight - minimapSize - padding;
-
-    // 이 영역만 배경 색으로 칠하기
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(x, y, minimapSize, minimapSize);
-
-    // 미니맵 배경 색 (조금 진한 회색 같은 느낌)
-    glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // 이제 이 영역에만 그리도록 뷰포트 설정
-    glViewport(x, y, minimapSize, minimapSize);
-
-
-    // 메인 화면은 그대로 두고, 미니맵 영역에서는 깊이만 초기화
-    glClear(GL_DEPTH_BUFFER_BIT);
-
-    // 미로 전체 범위 계산
-    float totalGridWidth = (g_gridWidth - 1) * (CUBE_SIZE + GRID_SPACING);
-    float totalGridHeight = (g_gridHeight - 1) * (CUBE_SIZE + GRID_SPACING);
-    float halfW = totalGridWidth * 0.5f;
-    float halfH = totalGridHeight * 0.5f;
-
-    // 위에서 직각으로 내려다보는 카메라
-    glm::mat4 minimapView = glm::lookAt(
-        glm::vec3(0.0f, 30.0f, 0.0f),
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 0.0f, 1.0f) // 위쪽 기준
-    );
-
-    // 전체가 다 들어오도록 orthographic
-    glm::mat4 minimapProj = glm::ortho(
-        -halfW * 1.1f, halfW * 1.1f,
-        -halfH * 1.1f, halfH * 1.1f,
-        0.1f, 100.0f
-    );
-
-    // 미니맵 모드로 그리기
-    g_isMinimapView = true;
-    drawGrid(minimapView, minimapProj, glm::vec3(0.0f, 30.0f, 0.0f));
-    g_isMinimapView = false;
-
-    glDisable(GL_SCISSOR_TEST);
-    glBindVertexArray(0);
 
     // ---- 2D Text Overlay ----
     float centerX = g_windowWidth * 0.5f;
