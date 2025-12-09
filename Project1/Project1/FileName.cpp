@@ -47,7 +47,7 @@ const float PLAYER_WIDTH = 0.3f;
 const float PLAYER_HEIGHT = 0.5f;
 const float PLAYER_DEPTH = 0.3f;
 const float PLAYER_MOVE_SPEED = 4.0f;
-float g_pacmanMouthAngle = 55.0f;          // 현재 입 각도(도)
+float g_pacmanMouthAngle = 0.0f;          // 현재 입 각도(도)
 float g_pacmanMouthDir = 1.0f;             // 1 = 열리는 중, -1 = 닫히는 중
 
 const float PACMAN_MOUTH_MAX = 55.0f;      // 최대 입 벌림 각도 (더 크게 벌리기)
